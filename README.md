@@ -1,4 +1,4 @@
-[![Deploy to GitHub Pages](https://github.com/aimsora/.github/actions/workflows/pages.yml/badge.svg)](https://github.com/aimsora/.github/actions/workflows/pages.yml)
+[![Deploy to GitHub Pages](https://github.com/aimsora/aimsora/actions/workflows/pages.yml/badge.svg)](https://github.com/aimsora/.github/actions/workflows/pages.yml)
 ![Project](https://img.shields.io/badge/Project-AIMSORA-blue)
 ![Architecture](https://img.shields.io/badge/Architecture-Multi--Repo-0b2f7a)
 ![Deployment](https://img.shields.io/badge/Deployment-GitHub%20Actions-2088FF?logo=githubactions&logoColor=white)
