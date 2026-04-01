@@ -5,7 +5,7 @@ ARG VITE_GRAPHQL_ENDPOINT=/graphql
 ENV VITE_GRAPHQL_ENDPOINT=${VITE_GRAPHQL_ENDPOINT}
 
 COPY package.json package-lock.json* ./
-RUN npm ci
+RUN npm ci --fetch-retries 5 --fetch-retry-mintimeout 20000 --fetch-retry-maxtimeout 120000
 
 COPY index.html tsconfig.json tsconfig.app.json tsconfig.base.json tsconfig.node.json vite.config.ts ./
 COPY public ./public

@@ -1,21 +1,29 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
-import { useRoute } from "vue-router";
+import { RouterLink, useRoute } from "vue-router";
+import {
+  formatCurrency,
+  formatDateTime,
+  formatEnumLabel,
+  statusTone
+} from "../lib/format";
 import { apolloClient } from "../services/apollo";
+import type { Procurement } from "../services/graphql-types";
 import { PROCUREMENT_QUERY } from "../services/queries";
 
 const route = useRoute();
 const loading = ref(true);
 const error = ref("");
-const item = ref<Record<string, unknown> | null>(null);
+const item = ref<Procurement | null>(null);
 
 onMounted(async () => {
   try {
-    const { data } = await apolloClient.query<{ procurementItem: Record<string, unknown> | null }>({
+    const { data } = await apolloClient.query<{ procurementItem: Procurement | null }>({
       query: PROCUREMENT_QUERY,
       variables: { id: route.params.id },
       fetchPolicy: "network-only"
     });
+
     item.value = data.procurementItem;
   } catch (caught) {
     error.value = caught instanceof Error ? caught.message : "Unable to load procurement";
@@ -27,8 +35,11 @@ onMounted(async () => {
 
 <template>
   <section class="page-header">
-    <p class="eyebrow">Record</p>
-    <h2>Procurement Detail</h2>
+    <div>
+      <p class="eyebrow">Record</p>
+      <h2>Procurement Detail</h2>
+    </div>
+    <RouterLink class="text-link" to="/procurements">Back to list</RouterLink>
   </section>
 
   <div v-if="loading" class="card">Loading record...</div>
@@ -44,6 +55,10 @@ onMounted(async () => {
         <strong>{{ item.source }}</strong>
       </div>
       <div>
+        <span class="detail-label">External ID</span>
+        <strong>{{ item.externalId }}</strong>
+      </div>
+      <div>
         <span class="detail-label">Customer</span>
         <strong>{{ item.customer || "n/a" }}</strong>
       </div>
@@ -53,19 +68,34 @@ onMounted(async () => {
       </div>
       <div>
         <span class="detail-label">Amount</span>
-        <strong>{{ item.amount || "n/a" }} {{ item.currency || "" }}</strong>
+        <strong>{{ formatCurrency(item.amount, item.currency) }}</strong>
       </div>
       <div>
         <span class="detail-label">Status</span>
-        <strong>{{ item.status }}</strong>
+        <span class="status-chip" :class="statusTone(item.status)">
+          {{ formatEnumLabel(item.status) }}
+        </span>
       </div>
       <div>
         <span class="detail-label">Published</span>
-        <strong>{{ item.publishedAt ? new Date(String(item.publishedAt)).toLocaleString() : "n/a" }}</strong>
+        <strong>{{ formatDateTime(item.publishedAt) }}</strong>
       </div>
       <div>
         <span class="detail-label">Deadline</span>
-        <strong>{{ item.deadlineAt ? new Date(String(item.deadlineAt)).toLocaleString() : "n/a" }}</strong>
+        <strong>{{ formatDateTime(item.deadlineAt) }}</strong>
+      </div>
+      <div>
+        <span class="detail-label">Source URL</span>
+        <a
+          v-if="item.sourceUrl"
+          class="text-link"
+          :href="item.sourceUrl"
+          target="_blank"
+          rel="noreferrer"
+        >
+          Open original
+        </a>
+        <strong v-else>n/a</strong>
       </div>
       <div class="detail-block">
         <span class="detail-label">Description</span>

@@ -17,9 +17,9 @@ const navigation = computed(() =>
   ].filter(Boolean) as Array<{ name: string; path: string }>
 );
 
-function logout() {
-  authStore.logout();
-  void router.push("/login");
+async function logout() {
+  await authStore.logout();
+  await router.push("/");
 }
 </script>
 
@@ -29,8 +29,10 @@ function logout() {
       <div class="brand">
         <p class="eyebrow">AIMSORA</p>
         <h1>Control Room</h1>
-        <p class="caption">Open-source procurement intelligence</p>
+        <p class="caption">Procurement intelligence workspace</p>
       </div>
+
+      <RouterLink class="landing-link" to="/">Public entry</RouterLink>
 
       <nav class="nav">
         <RouterLink
@@ -46,12 +48,15 @@ function logout() {
 
     <main class="content">
       <header class="topbar">
-        <div>
+        <div class="topbar-copy">
           <p class="eyebrow">Signed in</p>
           <strong>{{ authStore.user?.fullName }}</strong>
           <span class="role-chip">{{ authStore.user?.role }}</span>
+          <p class="caption">{{ authStore.user?.email }}</p>
         </div>
-        <button class="secondary-button" @click="logout">Log out</button>
+        <button class="secondary-button" :disabled="authStore.loggingOut" @click="logout">
+          {{ authStore.loggingOut ? "Logging out..." : "Log out" }}
+        </button>
       </header>
 
       <div class="page-body">

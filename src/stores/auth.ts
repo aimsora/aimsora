@@ -1,35 +1,55 @@
 import { defineStore } from "pinia";
 import { apolloClient } from "../services/apollo";
-import { LOGIN_MUTATION, REFRESH_MUTATION } from "../services/queries";
+import type { AuthPayload, SessionUser } from "../services/graphql-types";
+import {
+  LOGIN_MUTATION,
+  LOGOUT_MUTATION,
+  ME_QUERY,
+  REFRESH_MUTATION
+} from "../services/queries";
 
-type UserRole = "USER" | "ANALYST" | "ADMIN";
-
-type SessionUser = {
-  id: string;
-  email: string;
-  fullName: string;
-  role: UserRole;
-};
-
-type AuthPayload = {
-  accessToken: string;
-  refreshToken: string;
-  expiresInSeconds: number;
-  user: SessionUser;
-};
+let initializationTask: Promise<void> | null = null;
 
 export const useAuthStore = defineStore("auth", {
   state: () => ({
     accessToken: localStorage.getItem("aimsora.accessToken") ?? "",
     refreshToken: localStorage.getItem("aimsora.refreshToken") ?? "",
     user: readStoredUser() as SessionUser | null,
-    loading: false
+    loading: false,
+    loggingOut: false,
+    initialized: false
   }),
   getters: {
     isAuthenticated: (state) => Boolean(state.accessToken && state.user),
     isAdmin: (state) => state.user?.role === "ADMIN"
   },
   actions: {
+    async initialize() {
+      if (this.initialized) {
+        return;
+      }
+
+      if (initializationTask) {
+        await initializationTask;
+        return;
+      }
+
+      initializationTask = (async () => {
+        if (!this.accessToken && this.refreshToken) {
+          await this.refresh();
+        } else if (this.accessToken && !this.user) {
+          await this.fetchCurrentUser();
+        }
+
+        this.initialized = true;
+      })();
+
+      try {
+        await initializationTask;
+      } finally {
+        initializationTask = null;
+      }
+    },
     async login(email: string, password: string) {
       this.loading = true;
       try {
@@ -41,8 +61,29 @@ export const useAuthStore = defineStore("auth", {
           throw new Error("Authentication failed");
         }
         this.setSession(data.login);
+        this.initialized = true;
+        await apolloClient.clearStore();
       } finally {
         this.loading = false;
+      }
+    },
+    async fetchCurrentUser() {
+      if (!this.accessToken) {
+        return false;
+      }
+
+      try {
+        const { data } = await apolloClient.query<{ me: SessionUser }>({
+          query: ME_QUERY,
+          fetchPolicy: "network-only"
+        });
+
+        this.user = data.me;
+        localStorage.setItem("aimsora.user", JSON.stringify(data.me));
+        return true;
+      } catch {
+        this.clearSession();
+        return false;
       }
     },
     async refresh() {
@@ -58,14 +99,29 @@ export const useAuthStore = defineStore("auth", {
           return false;
         }
         this.setSession(data.refreshSession);
+        this.initialized = true;
         return true;
       } catch {
         this.clearSession();
         return false;
       }
     },
-    logout() {
-      this.clearSession();
+    async logout() {
+      this.loggingOut = true;
+      try {
+        if (this.refreshToken) {
+          await apolloClient.mutate<{ logout: boolean }>({
+            mutation: LOGOUT_MUTATION,
+            variables: { input: { refreshToken: this.refreshToken } }
+          });
+        }
+      } catch {
+        // Local cleanup still needs to happen even if the session is already expired.
+      } finally {
+        this.clearSession();
+        this.initialized = true;
+        this.loggingOut = false;
+      }
     },
     setSession(payload: AuthPayload) {
       this.accessToken = payload.accessToken;

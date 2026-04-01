@@ -16,6 +16,12 @@ export const LOGIN_MUTATION = gql`
   }
 `;
 
+export const LOGOUT_MUTATION = gql`
+  mutation Logout($input: RefreshTokenInput!) {
+    logout(input: $input)
+  }
+`;
+
 export const REFRESH_MUTATION = gql`
   mutation RefreshSession($input: RefreshTokenInput!) {
     refreshSession(input: $input) {
@@ -28,6 +34,21 @@ export const REFRESH_MUTATION = gql`
         fullName
         role
       }
+    }
+  }
+`;
+
+export const ME_QUERY = gql`
+  query Me {
+    me {
+      id
+      email
+      fullName
+      role
+      isActive
+      lastLoginAt
+      createdAt
+      updatedAt
     }
   }
 `;
@@ -110,6 +131,7 @@ export const SOURCES_QUERY = gql`
       isActive
       baseUrl
       createdAt
+      updatedAt
     }
   }
 `;
@@ -154,6 +176,43 @@ export const USERS_QUERY = gql`
       isActive
       lastLoginAt
       createdAt
+      updatedAt
     }
+  }
+`;
+
+export const CREATE_USER_MUTATION = gql`
+  mutation CreateUser($input: CreateUserInput!) {
+    createUser(input: $input) {
+      id
+      email
+      fullName
+      role
+      isActive
+      lastLoginAt
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const UPDATE_USER_ROLE_MUTATION = gql`
+  mutation UpdateUserRole($input: UpdateUserRoleInput!) {
+    updateUserRole(input: $input) {
+      id
+      email
+      fullName
+      role
+      isActive
+      lastLoginAt
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const DEACTIVATE_USER_MUTATION = gql`
+  mutation DeactivateUser($userId: String!) {
+    deactivateUser(userId: $userId)
   }
 `;

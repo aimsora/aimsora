@@ -6,8 +6,7 @@ import {
 } from "@apollo/client/core";
 import { setContext } from "@apollo/client/link/context";
 
-const endpoint =
-  import.meta.env.VITE_GRAPHQL_ENDPOINT ?? "http://localhost:3000/graphql";
+const endpoint = import.meta.env.VITE_GRAPHQL_ENDPOINT ?? "/graphql";
 
 const httpLink = new HttpLink({
   uri: endpoint,
@@ -19,7 +18,7 @@ const authLink = setContext((_, { headers }) => {
   return {
     headers: {
       ...headers,
-      authorization: accessToken ? `Bearer ${accessToken}` : ""
+      ...(accessToken ? { authorization: `Bearer ${accessToken}` } : {})
     }
   };
 });

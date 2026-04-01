@@ -9,9 +9,7 @@ const authStore = useAuthStore();
 const isPublicRoute = computed(() => route.meta.public === true);
 
 onMounted(async () => {
-  if (!authStore.accessToken && authStore.refreshToken) {
-    await authStore.refresh();
-  }
+  await authStore.initialize();
 });
 </script>
 

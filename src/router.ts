@@ -1,4 +1,7 @@
 import { createRouter, createWebHistory } from "vue-router";
+import HomePage from "./pages/HomePage.vue";
+import { useAuthStore } from "./stores/auth";
+import { pinia } from "./stores";
 import DashboardPage from "./views/DashboardPage.vue";
 import JobsPage from "./views/JobsPage.vue";
 import LoginPage from "./views/LoginPage.vue";
@@ -10,14 +13,16 @@ import UsersPage from "./views/UsersPage.vue";
 
 const routes = [
   {
+    path: "/",
+    name: "home",
+    component: HomePage,
+    meta: { public: true }
+  },
+  {
     path: "/login",
     name: "login",
     component: LoginPage,
     meta: { public: true }
-  },
-  {
-    path: "/",
-    redirect: "/dashboard"
   },
   {
     path: "/dashboard",
@@ -69,22 +74,30 @@ export const router = createRouter({
 });
 
 router.beforeEach(async (to) => {
+  const authStore = useAuthStore(pinia);
+  await authStore.initialize();
   const requiresAuth = Boolean(to.meta.requiresAuth);
-  const accessToken = localStorage.getItem("aimsora.accessToken");
-  const refreshToken = localStorage.getItem("aimsora.refreshToken");
-  const user = localStorage.getItem("aimsora.user")
-    ? JSON.parse(localStorage.getItem("aimsora.user") ?? "null")
-    : null;
+
+  if (to.name === "login" && authStore.isAuthenticated) {
+    return { name: "dashboard" };
+  }
 
   if (!requiresAuth) {
     return true;
   }
 
-  if (!accessToken && !refreshToken) {
-    return { name: "login" };
+  if (!authStore.isAuthenticated) {
+    return {
+      name: "login",
+      query: { redirect: to.fullPath }
+    };
   }
 
-  if (Array.isArray(to.meta.roles) && user && !to.meta.roles.includes(user.role)) {
+  if (
+    Array.isArray(to.meta.roles) &&
+    authStore.user &&
+    !to.meta.roles.includes(authStore.user.role)
+  ) {
     return { name: "dashboard" };
   }
 
