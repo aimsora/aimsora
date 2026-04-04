@@ -1,7 +1,8 @@
 <script setup lang="ts">
 definePageMeta({
   title: "Источники",
-  description: "Подключённые источники и состояние их последних запусков"
+  description: "Подключённые источники и состояние их последних запусков",
+  roles: ["ANALYST", "DEVELOPER", "ADMIN"]
 });
 
 useHead({
@@ -10,16 +11,13 @@ useHead({
 
 const sourcesData = useSourcesData();
 
-const sourceRows = computed(() =>
-  sourcesData.sources.value.map((item) => ({
-    ...item,
-    lastRun: sourcesData.runs.value.find((run) => run.sourceCode === item.code)
-  }))
-);
+const sourceRows = computed(() => sourcesData.sources.value);
 
 const summaryCards = computed(() => {
   const activeCount = sourcesData.sources.value.filter((item) => item.isActive).length;
-  const withFailures = sourceRows.value.filter((item) => item.lastRun?.status === "FAILED").length;
+  const withFailures = sourceRows.value.filter((item) =>
+    ["FAILED", "PARTIAL"].includes(item.lastRun?.status ?? "")
+  ).length;
 
   return [
     {

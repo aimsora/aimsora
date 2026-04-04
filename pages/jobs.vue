@@ -1,11 +1,12 @@
 <script setup lang="ts">
 definePageMeta({
-  title: "Запуски",
-  description: "Журнал запусков сбора и публикации данных"
+  title: "Отчёты парсеров",
+  description: "Журнал запусков, ошибок и инцидентов по сборщикам",
+  roles: ["DEVELOPER", "ADMIN"]
 });
 
 useHead({
-  title: "Запуски"
+  title: "Отчёты парсеров"
 });
 
 const jobs = useJobsData();
@@ -45,8 +46,8 @@ onMounted(async () => {
 
 <template>
   <PageHeader
-    title="Запуски"
-    description="Журнал запусков по сбору и публикации данных с фильтром по источнику."
+    title="Отчёты парсеров"
+    description="Инженерный журнал запусков по сбору и публикации данных с деталями ошибок."
   >
     <template #actions>
       <div class="flex items-end gap-2">
@@ -96,7 +97,7 @@ onMounted(async () => {
     <Card>
       <CardHeader>
         <CardTitle>Журнал запусков</CardTitle>
-        <CardDescription>По каждому запуску видны источник, статус, длительность и операционные метрики.</CardDescription>
+        <CardDescription>По каждому запуску видны источник, статус, длительность и технические детали инцидентов.</CardDescription>
       </CardHeader>
       <CardContent v-if="jobs.runs.value.length === 0">
         <EmptyState

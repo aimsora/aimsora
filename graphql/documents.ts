@@ -10,6 +10,7 @@ export const LOGIN_MUTATION = gql`
         id
         email
         fullName
+        avatarUrl
         role
       }
     }
@@ -32,6 +33,7 @@ export const REFRESH_MUTATION = gql`
         id
         email
         fullName
+        avatarUrl
         role
       }
     }
@@ -44,6 +46,7 @@ export const ME_QUERY = gql`
       id
       email
       fullName
+      avatarUrl
       role
       isActive
       lastLoginAt
@@ -116,6 +119,61 @@ export const DASHBOARD_QUERY = gql`
   }
 `;
 
+export const ANALYTICS_QUERY = gql`
+  query AnalyticsSummary {
+    analyticsSummary {
+      closingSoonCount
+      overdueCount
+      highValueCount
+      averageProcurementValue
+      atRiskSources
+      runSuccessRate
+      publicationEfficiency
+      riskSignalsLast30d
+      deadlinePressure {
+        label
+        count
+      }
+      sourceHealth {
+        source
+        name
+        kind
+        isActive
+        lastRunAt
+        lastRunStatus
+        successRate
+        publicationRate
+        failedRuns
+        hoursSinceLastRun
+        riskLevel
+      }
+      supplierExposure {
+        supplier
+        procurementCount
+        totalAmount
+        sharePercent
+      }
+      attentionProcurements {
+        id
+        externalId
+        source
+        title
+        description
+        customer
+        supplier
+        amount
+        currency
+        status
+        publishedAt
+        deadlineAt
+        sourceUrl
+        createdAt
+        updatedAt
+      }
+    }
+  }
+`;
+
 export const PROCUREMENTS_QUERY = gql`
   query ProcurementItems(
     $filter: ProcurementFilterInput
@@ -180,6 +238,18 @@ export const SOURCES_QUERY = gql`
       baseUrl
       createdAt
       updatedAt
+      lastRun {
+        id
+        runKey
+        sourceCode
+        status
+        startedAt
+        finishedAt
+        itemsDiscovered
+        itemsPublished
+        itemsFailed
+        errorMessage
+      }
     }
   }
 `;
@@ -201,6 +271,81 @@ export const SOURCE_RUNS_QUERY = gql`
   }
 `;
 
+export const TRIGGER_COLLECTORS_MUTATION = gql`
+  mutation TriggerCollectors($sourceCodes: [String!]) {
+    triggerCollectors(sourceCodes: $sourceCodes) {
+      triggeredAt
+      allAccepted
+      items {
+        sourceCode
+        sourceName
+        accepted
+        runKey
+        startedAt
+        message
+      }
+    }
+  }
+`;
+
+export const SCRAPER_ADMIN_OVERVIEW_QUERY = gql`
+  query ScraperAdminOverview {
+    scraperAdminOverview {
+      config {
+        schedule
+        autoRunEnabled
+        updatedAt
+        source
+      }
+      runtime {
+        reachable
+        schedule
+        autoRunEnabled
+        running
+        runningSources
+        loadedSources
+        circuitStates {
+          sourceCode
+          failures
+          openUntil
+        }
+        message
+      }
+      sources {
+        sourceCode
+        sourceName
+        isActive
+        lastRunStatus
+        lastRunAt
+        lastSuccessAt
+        lastErrorMessage
+        riskLevel
+        successRate
+        publicationRate
+        failedRuns
+        hoursSinceLastRun
+        isRunning
+        circuitOpen
+        consecutiveFailures
+        circuitOpenUntil
+        attentionRequired
+        attentionReason
+      }
+    }
+  }
+`;
+
+export const UPDATE_SCRAPER_ADMIN_CONFIG_MUTATION = gql`
+  mutation UpdateScraperAdminConfig($input: UpdateScraperAdminConfigInput!) {
+    updateScraperAdminConfig(input: $input) {
+      schedule
+      autoRunEnabled
+      updatedAt
+      source
+    }
+  }
+`;
+
 export const REPORTS_QUERY = gql`
   query Reports {
     reports {
@@ -208,8 +353,139 @@ export const REPORTS_QUERY = gql`
       name
       description
       status
+      reportType
       createdAt
       updatedAt
+    }
+  }
+`;
+
+export const REFRESH_REPORTS_MUTATION = gql`
+  mutation RefreshReports($types: [String!]) {
+    refreshReports(types: $types) {
+      id
+      name
+      description
+      status
+      reportType
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const ARCHIVE_REPORT_MUTATION = gql`
+  mutation ArchiveReport($id: String!) {
+    archiveReport(id: $id)
+  }
+`;
+
+export const REPORT_QUERY = gql`
+  query Report($id: String!) {
+    report(id: $id) {
+      id
+      name
+      description
+      status
+      reportType
+      generatedAt
+      metrics {
+        label
+        value
+        hint
+      }
+      highlights {
+        title
+        description
+        severity
+      }
+      scores {
+        label
+        value
+        detail
+        severity
+      }
+      actions {
+        title
+        description
+        priority
+      }
+      deadlinePressure {
+        label
+        count
+      }
+      statusMix {
+        label
+        count
+        sharePercent
+      }
+      amountDistribution {
+        label
+        procurementCount
+        totalAmount
+        sharePercent
+      }
+      customerExposure {
+        customer
+        procurementCount
+        totalAmount
+        sharePercent
+      }
+      sourceContribution {
+        sourceCode
+        sourceName
+        procurementCount
+        totalAmount
+        sharePercent
+      }
+      sourceHealth {
+        source
+        name
+        kind
+        isActive
+        lastRunAt
+        lastRunStatus
+        successRate
+        publicationRate
+        failedRuns
+        hoursSinceLastRun
+        riskLevel
+      }
+      supplierExposure {
+        supplier
+        procurementCount
+        totalAmount
+        sharePercent
+      }
+      recentSourceRuns {
+        id
+        runKey
+        sourceCode
+        status
+        startedAt
+        finishedAt
+        itemsDiscovered
+        itemsPublished
+        itemsFailed
+        errorMessage
+      }
+      recentProcurements {
+        id
+        externalId
+        source
+        title
+        description
+        customer
+        supplier
+        amount
+        currency
+        status
+        publishedAt
+        deadlineAt
+        sourceUrl
+        createdAt
+        updatedAt
+      }
     }
   }
 `;
@@ -220,6 +496,7 @@ export const USERS_QUERY = gql`
       id
       email
       fullName
+      avatarUrl
       role
       isActive
       lastLoginAt
@@ -235,6 +512,7 @@ export const CREATE_USER_MUTATION = gql`
       id
       email
       fullName
+      avatarUrl
       role
       isActive
       lastLoginAt
@@ -250,6 +528,7 @@ export const UPDATE_USER_ROLE_MUTATION = gql`
       id
       email
       fullName
+      avatarUrl
       role
       isActive
       lastLoginAt
@@ -262,5 +541,53 @@ export const UPDATE_USER_ROLE_MUTATION = gql`
 export const DEACTIVATE_USER_MUTATION = gql`
   mutation DeactivateUser($userId: String!) {
     deactivateUser(userId: $userId)
+  }
+`;
+
+export const SET_USER_ACTIVE_MUTATION = gql`
+  mutation SetUserActive($input: SetUserActiveInput!) {
+    setUserActive(input: $input) {
+      id
+      email
+      fullName
+      avatarUrl
+      role
+      isActive
+      lastLoginAt
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const UPDATE_PROFILE_MUTATION = gql`
+  mutation UpdateProfile($input: UpdateProfileInput!) {
+    updateProfile(input: $input) {
+      id
+      email
+      fullName
+      avatarUrl
+      role
+      isActive
+      lastLoginAt
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const RESET_USER_PASSWORD_MUTATION = gql`
+  mutation ResetUserPassword($input: ResetUserPasswordInput!) {
+    resetUserPassword(input: $input) {
+      id
+      email
+      fullName
+      avatarUrl
+      role
+      isActive
+      lastLoginAt
+      createdAt
+      updatedAt
+    }
   }
 `;

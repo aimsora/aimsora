@@ -7,36 +7,88 @@ export type AppNavigationItem = {
   roles?: UserRole[];
 };
 
-export const APP_NAVIGATION: AppNavigationItem[] = [
+export type AppNavigationGroup = {
+  title: string;
+  items: AppNavigationItem[];
+};
+
+export const APP_NAVIGATION_GROUPS: AppNavigationGroup[] = [
   {
-    title: "Дашборд",
-    href: "/dashboard",
-    description: "Оперативная сводка по системе"
+    title: "Рабочее пространство",
+    items: [
+      {
+        title: "Дашборд",
+        href: "/dashboard",
+        description: "Оперативная сводка по системе"
+      }
+    ]
   },
   {
-    title: "Закупки",
-    href: "/procurements",
-    description: "Реестр закупок и фильтры"
+    title: "Аналитика",
+    items: [
+      {
+        title: "Закупки",
+        href: "/procurements",
+        description: "Реестр закупок и фильтры",
+        roles: ["ANALYST", "ADMIN"]
+      },
+      {
+        title: "Аналитика",
+        href: "/analytics",
+        description: "Риски, сроки и качество потока",
+        roles: ["ANALYST", "ADMIN"]
+      }
+    ]
   },
   {
-    title: "Источники",
-    href: "/sources",
-    description: "Состояние подключённых источников"
-  },
-  {
-    title: "Запуски",
-    href: "/jobs",
-    description: "Журнал запусков и ошибок"
+    title: "Парсеры",
+    items: [
+      {
+        title: "Источники",
+        href: "/sources",
+        description: "Состояние подключённых источников",
+        roles: ["ANALYST", "DEVELOPER", "ADMIN"]
+      },
+      {
+        title: "Коллекторы",
+        href: "/collectors",
+        description: "Ручной запуск сборщиков",
+        roles: ["DEVELOPER", "ADMIN"]
+      },
+      {
+        title: "Отчёты парсеров",
+        href: "/jobs",
+        description: "Инциденты, ошибки и журнал работы сборщиков",
+        roles: ["DEVELOPER", "ADMIN"]
+      }
+    ]
   },
   {
     title: "Отчёты",
-    href: "/reports",
-    description: "Актуальные аналитические отчёты"
+    items: [
+      {
+        title: "Отчёты",
+        href: "/reports",
+        description: "Ролевой контур аналитических и инженерных отчётов",
+        roles: ["ANALYST", "DEVELOPER", "ADMIN"]
+      }
+    ]
   },
   {
-    title: "Пользователи",
-    href: "/users",
-    description: "Роли и доступ пользователей",
-    roles: ["ADMIN"]
+    title: "Администрирование",
+    items: [
+      {
+        title: "Парсеры",
+        href: "/admin/parsers",
+        description: "Контур управления и здоровья сборщиков",
+        roles: ["DEVELOPER", "ADMIN"]
+      },
+      {
+        title: "Пользователи",
+        href: "/users",
+        description: "Роли и доступ пользователей",
+        roles: ["ADMIN"]
+      }
+    ]
   }
 ];

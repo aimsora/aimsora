@@ -6,7 +6,8 @@ import {
   REFRESH_MUTATION
 } from "~/graphql/documents";
 import type { AuthPayload, SessionUser } from "~/graphql/types";
-import { AUTH_STORAGE_KEYS } from "~/utils/auth";
+import { getRolePermissions, roleHasPermission, type AppPermission } from "~/utils/access";
+import { AUTH_STORAGE_KEYS, LEGACY_AUTH_STORAGE_KEYS } from "~/utils/auth";
 
 let initializationTask: Promise<void> | null = null;
 
@@ -15,7 +16,9 @@ function readStoredUser() {
     return null;
   }
 
-  const raw = window.localStorage.getItem(AUTH_STORAGE_KEYS.user);
+  const raw =
+    window.localStorage.getItem(AUTH_STORAGE_KEYS.user) ??
+    window.localStorage.getItem(LEGACY_AUTH_STORAGE_KEYS.user);
   if (!raw) {
     return null;
   }
@@ -37,14 +40,49 @@ export function useAuthSession() {
   const initialized = useState<boolean>("auth.initialized", () => false);
   const hydrated = useState<boolean>("auth.hydrated", () => false);
 
+  function readStoredToken(key: keyof typeof AUTH_STORAGE_KEYS) {
+    if (!import.meta.client) {
+      return "";
+    }
+
+    return (
+      window.localStorage.getItem(AUTH_STORAGE_KEYS[key]) ??
+      window.localStorage.getItem(LEGACY_AUTH_STORAGE_KEYS[key]) ??
+      ""
+    );
+  }
+
+  function migrateLegacyStorage() {
+    if (!import.meta.client) {
+      return;
+    }
+
+    if (accessToken.value) {
+      window.localStorage.setItem(AUTH_STORAGE_KEYS.accessToken, accessToken.value);
+    }
+
+    if (refreshToken.value) {
+      window.localStorage.setItem(AUTH_STORAGE_KEYS.refreshToken, refreshToken.value);
+    }
+
+    if (user.value) {
+      window.localStorage.setItem(AUTH_STORAGE_KEYS.user, JSON.stringify(user.value));
+    }
+
+    window.localStorage.removeItem(LEGACY_AUTH_STORAGE_KEYS.accessToken);
+    window.localStorage.removeItem(LEGACY_AUTH_STORAGE_KEYS.refreshToken);
+    window.localStorage.removeItem(LEGACY_AUTH_STORAGE_KEYS.user);
+  }
+
   function hydrateFromStorage() {
     if (!import.meta.client || hydrated.value) {
       return;
     }
 
-    accessToken.value = window.localStorage.getItem(AUTH_STORAGE_KEYS.accessToken) ?? "";
-    refreshToken.value = window.localStorage.getItem(AUTH_STORAGE_KEYS.refreshToken) ?? "";
+    accessToken.value = readStoredToken("accessToken");
+    refreshToken.value = readStoredToken("refreshToken");
     user.value = readStoredUser();
+    migrateLegacyStorage();
     hydrated.value = true;
   }
 
@@ -62,6 +100,19 @@ export function useAuthSession() {
     window.localStorage.setItem(AUTH_STORAGE_KEYS.user, JSON.stringify(payload.user));
   }
 
+  function applyUserProfile(nextUser: SessionUser) {
+    user.value = {
+      ...(user.value ?? {}),
+      ...nextUser
+    };
+
+    if (!import.meta.client) {
+      return;
+    }
+
+    window.localStorage.setItem(AUTH_STORAGE_KEYS.user, JSON.stringify(user.value));
+  }
+
   async function clearSession() {
     accessToken.value = "";
     refreshToken.value = "";
@@ -71,6 +122,9 @@ export function useAuthSession() {
       window.localStorage.removeItem(AUTH_STORAGE_KEYS.accessToken);
       window.localStorage.removeItem(AUTH_STORAGE_KEYS.refreshToken);
       window.localStorage.removeItem(AUTH_STORAGE_KEYS.user);
+      window.localStorage.removeItem(LEGACY_AUTH_STORAGE_KEYS.accessToken);
+      window.localStorage.removeItem(LEGACY_AUTH_STORAGE_KEYS.refreshToken);
+      window.localStorage.removeItem(LEGACY_AUTH_STORAGE_KEYS.user);
     }
 
     await apollo.clearStore().catch(() => undefined);
@@ -94,7 +148,7 @@ export function useAuthSession() {
         throw new Error("Не удалось загрузить профиль пользователя");
       }
 
-      user.value = data.me;
+     user.value = data.me;
       if (import.meta.client) {
         window.localStorage.setItem(AUTH_STORAGE_KEYS.user, JSON.stringify(data.me));
       }
@@ -231,6 +285,10 @@ export function useAuthSession() {
     }
   }
 
+  function can(permission: AppPermission) {
+    return roleHasPermission(user.value?.role, permission);
+  }
+
   return {
     accessToken,
     refreshToken,
@@ -245,7 +303,15 @@ export function useAuthSession() {
     login,
     logout,
     clearSession,
+    applyUserProfile,
+    can,
+    permissions: computed(() => getRolePermissions(user.value?.role)),
     isAuthenticated: computed(() => Boolean(accessToken.value && user.value)),
-    isAdmin: computed(() => user.value?.role === "ADMIN")
+    isAdmin: computed(() => user.value?.role === "ADMIN"),
+    isAnalyst: computed(() => user.value?.role === "ANALYST"),
+    isDeveloper: computed(() => user.value?.role === "DEVELOPER"),
+    isAnalystOrAdmin: computed(() =>
+      user.value?.role === "ANALYST" || user.value?.role === "ADMIN"
+    )
   };
 }

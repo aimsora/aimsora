@@ -23,6 +23,6 @@ export default defineNuxtRouteMiddleware(async (to) => {
   const roles = Array.isArray(to.meta.roles) ? (to.meta.roles as UserRole[]) : [];
 
   if (roles.length > 0 && !roles.includes(auth.user.value?.role ?? "USER")) {
-    return navigateTo("/dashboard");
+    return navigateTo(`/forbidden?from=${encodeURIComponent(to.fullPath)}`);
   }
 });

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 definePageMeta({
   title: "Закупки",
-  description: "Реестр закупок с фильтрами, таблицей и пагинацией"
+  description: "Реестр закупок с фильтрами, таблицей и пагинацией",
+  roles: ["ANALYST", "ADMIN"]
 });
 
 useHead({

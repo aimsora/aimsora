@@ -1,7 +1,8 @@
 <script setup lang="ts">
 definePageMeta({
   title: "Карточка закупки",
-  description: "Структурированная информация по выбранной закупке"
+  description: "Структурированная информация по выбранной закупке",
+  roles: ["ANALYST", "ADMIN"]
 });
 
 const route = useRoute();

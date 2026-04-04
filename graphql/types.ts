@@ -1,10 +1,8 @@
-export type UserRole = "USER" | "ANALYST" | "ADMIN";
+export type UserRole = "USER" | "ANALYST" | "DEVELOPER" | "ADMIN";
 
 export type ProcurementStatus = "DRAFT" | "ACTIVE" | "CLOSED" | "ARCHIVED";
 
 export type SourceKind =
-  | "DEMO"
-  | "FIND_TENDER"
   | "EASUZ"
   | "EIS"
   | "RNP"
@@ -20,6 +18,7 @@ export type SessionUser = {
   id: string;
   email: string;
   fullName: string;
+  avatarUrl?: string | null;
   role: UserRole;
   isActive?: boolean;
   lastLoginAt?: string | null;
@@ -106,6 +105,7 @@ export type Source = {
   kind: SourceKind;
   baseUrl?: string | null;
   isActive: boolean;
+  lastRun?: SourceRun | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -123,19 +123,203 @@ export type SourceRun = {
   errorMessage?: string | null;
 };
 
+export type CollectorTriggerItem = {
+  sourceCode: string;
+  sourceName: string;
+  accepted: boolean;
+  runKey?: string | null;
+  startedAt?: string | null;
+  message?: string | null;
+};
+
+export type CollectorTriggerResult = {
+  triggeredAt: string;
+  allAccepted: boolean;
+  items: CollectorTriggerItem[];
+};
+
+export type ScraperAdminConfig = {
+  schedule: string;
+  autoRunEnabled: boolean;
+  updatedAt: string;
+  source: string;
+};
+
+export type ScraperRuntimeCircuitState = {
+  sourceCode: string;
+  failures: number;
+  openUntil?: string | null;
+};
+
+export type ScraperRuntimeState = {
+  reachable: boolean;
+  schedule: string;
+  autoRunEnabled: boolean;
+  running: boolean;
+  runningSources: string[];
+  loadedSources: string[];
+  circuitStates: ScraperRuntimeCircuitState[];
+  message?: string | null;
+};
+
+export type ScraperAdminSourceStatus = {
+  sourceCode: string;
+  sourceName: string;
+  isActive: boolean;
+  lastRunStatus?: SourceRunStatus | null;
+  lastRunAt?: string | null;
+  lastSuccessAt?: string | null;
+  lastErrorMessage?: string | null;
+  riskLevel: string;
+  successRate: number;
+  publicationRate: number;
+  failedRuns: number;
+  hoursSinceLastRun?: number | null;
+  isRunning: boolean;
+  circuitOpen: boolean;
+  consecutiveFailures: number;
+  circuitOpenUntil?: string | null;
+  attentionRequired: boolean;
+  attentionReason: string;
+};
+
+export type ScraperAdminOverview = {
+  config: ScraperAdminConfig;
+  runtime: ScraperRuntimeState;
+  sources: ScraperAdminSourceStatus[];
+};
+
+export type AnalyticsDeadlineBucket = {
+  label: string;
+  count: number;
+};
+
+export type AnalyticsSourceHealthItem = {
+  source: string;
+  name: string;
+  kind: SourceKind;
+  isActive: boolean;
+  lastRunAt?: string | null;
+  lastRunStatus?: SourceRunStatus | null;
+  successRate: number;
+  publicationRate: number;
+  failedRuns: number;
+  hoursSinceLastRun?: number | null;
+  riskLevel: string;
+};
+
+export type AnalyticsSupplierExposureItem = {
+  supplier: string;
+  procurementCount: number;
+  totalAmount: number;
+  sharePercent: number;
+};
+
+export type AnalyticsSummary = {
+  closingSoonCount: number;
+  overdueCount: number;
+  highValueCount: number;
+  averageProcurementValue: number;
+  atRiskSources: number;
+  runSuccessRate: number;
+  publicationEfficiency: number;
+  riskSignalsLast30d: number;
+  deadlinePressure: AnalyticsDeadlineBucket[];
+  sourceHealth: AnalyticsSourceHealthItem[];
+  supplierExposure: AnalyticsSupplierExposureItem[];
+  attentionProcurements: Procurement[];
+};
+
 export type Report = {
   id: string;
   name: string;
   description?: string | null;
   status: ReportStatus;
+  reportType: string;
   createdAt: string;
   updatedAt: string;
+};
+
+export type ReportMetric = {
+  label: string;
+  value: string;
+  hint: string;
+};
+
+export type ReportHighlight = {
+  title: string;
+  description: string;
+  severity: string;
+};
+
+export type ReportScore = {
+  label: string;
+  value: number;
+  detail: string;
+  severity: string;
+};
+
+export type ReportAction = {
+  title: string;
+  description: string;
+  priority: string;
+};
+
+export type ReportStatusMixItem = {
+  label: string;
+  count: number;
+  sharePercent: number;
+};
+
+export type ReportAmountDistributionItem = {
+  label: string;
+  procurementCount: number;
+  totalAmount: number;
+  sharePercent: number;
+};
+
+export type ReportCustomerExposureItem = {
+  customer: string;
+  procurementCount: number;
+  totalAmount: number;
+  sharePercent: number;
+};
+
+export type ReportSourceContributionItem = {
+  sourceCode: string;
+  sourceName: string;
+  procurementCount: number;
+  totalAmount: number;
+  sharePercent: number;
+};
+
+export type ReportDetail = {
+  id: string;
+  name: string;
+  description?: string | null;
+  status: ReportStatus;
+  reportType: string;
+  generatedAt: string;
+  metrics: ReportMetric[];
+  highlights: ReportHighlight[];
+  scores: ReportScore[];
+  actions: ReportAction[];
+  deadlinePressure: AnalyticsDeadlineBucket[];
+  statusMix: ReportStatusMixItem[];
+  amountDistribution: ReportAmountDistributionItem[];
+  customerExposure: ReportCustomerExposureItem[];
+  sourceContribution: ReportSourceContributionItem[];
+  sourceHealth: AnalyticsSourceHealthItem[];
+  supplierExposure: AnalyticsSupplierExposureItem[];
+  recentSourceRuns: SourceRun[];
+  recentProcurements: Procurement[];
 };
 
 export type AppUser = {
   id: string;
   email: string;
   fullName: string;
+  avatarUrl?: string | null;
   role: UserRole;
   isActive: boolean;
   lastLoginAt?: string | null;

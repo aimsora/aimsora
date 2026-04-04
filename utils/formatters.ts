@@ -27,16 +27,15 @@ const compactNumberFormatter = new Intl.NumberFormat("ru-RU", {
 const labels = {
   USER: "Пользователь",
   ANALYST: "Аналитик",
+  DEVELOPER: "Разработчик",
   ADMIN: "Администратор",
   DRAFT: "Черновик",
   ACTIVE: "Активна",
   CLOSED: "Завершена",
   ARCHIVED: "В архиве",
-  DEMO: "Демо",
   EASUZ: "ЕАСУЗ",
   EIS: "ЕИС",
   FEDRESURS: "Федресурс",
-  FIND_TENDER: "FindTender",
   FNS: "ФНС",
   GISTORGI: "ГИС Торги",
   RNP: "РНП",
@@ -95,6 +94,16 @@ export function formatCompactNumber(value?: number | null) {
   return compactNumberFormatter.format(value);
 }
 
+export function formatPercent(value?: number | null) {
+  if (value === null || value === undefined) {
+    return "0%";
+  }
+
+  return `${new Intl.NumberFormat("ru-RU", {
+    maximumFractionDigits: 1
+  }).format(value)}%`;
+}
+
 export function formatCurrency(amount?: number | null, currency?: string | null) {
   if (amount === null || amount === undefined) {
     return "Нет данных";
@@ -151,7 +160,7 @@ export function badgeVariant(value?: string | null) {
     return "destructive" as const;
   }
 
-  if (["PARTIAL", "PENDING", "RUNNING", "CLOSED", "ANALYST"].includes(normalized)) {
+  if (["PARTIAL", "PENDING", "RUNNING", "CLOSED", "ANALYST", "DEVELOPER"].includes(normalized)) {
     return "warning" as const;
   }
 

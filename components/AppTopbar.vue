@@ -1,7 +1,7 @@
 <script setup lang="ts">
 const route = useRoute();
 
-const title = computed(() => (typeof route.meta.title === "string" ? route.meta.title : "AIMSORA"));
+const title = computed(() => (typeof route.meta.title === "string" ? route.meta.title : "NPPWEB"));
 const description = computed(() =>
   typeof route.meta.description === "string" ? route.meta.description : "Внутреннее рабочее пространство"
 );

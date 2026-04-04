@@ -3,7 +3,7 @@ definePageMeta({
   layout: "auth",
   public: true,
   title: "Вход",
-  description: "Авторизация в AIMSORA"
+  description: "Авторизация в NPPWEB"
 });
 
 useHead({
@@ -15,15 +15,6 @@ const auth = useAuthSession();
 const email = ref("");
 const password = ref("");
 const error = ref("");
-
-const isDevMode = computed(
-  () => import.meta.dev || ["localhost", "127.0.0.1"].includes(window.location.hostname)
-);
-
-function fillDemoCredentials() {
-  email.value = "admin@admin.ru";
-  password.value = "12345678";
-}
 
 function normalizeLoginError(message: string) {
   const normalized = message.toLowerCase();
@@ -62,7 +53,7 @@ async function submit() {
   <div class="grid w-full max-w-5xl gap-8 lg:grid-cols-[1.1fr_0.9fr]">
     <div class="hidden rounded-3xl border bg-background p-10 shadow-sm lg:flex lg:flex-col lg:justify-between">
       <div class="space-y-6">
-        <Badge variant="outline" class="w-fit">AIMSORA</Badge>
+        <Badge variant="outline" class="w-fit">NPPWEB</Badge>
         <div class="space-y-3">
           <h1 class="max-w-md text-4xl font-semibold tracking-tight text-balance">
             Платформа мониторинга закупок в едином рабочем контуре.
@@ -91,7 +82,7 @@ async function submit() {
     <Card class="border bg-background shadow-sm">
       <CardHeader class="space-y-6">
         <div class="space-y-2">
-          <Badge variant="secondary" class="w-fit">AIMSORA</Badge>
+          <Badge variant="secondary" class="w-fit">NPPWEB</Badge>
           <CardTitle class="text-2xl">Войти в систему</CardTitle>
           <CardDescription>
             Используйте рабочие учётные данные, чтобы открыть защищённый интерфейс.
@@ -99,14 +90,6 @@ async function submit() {
         </div>
       </CardHeader>
       <CardContent class="space-y-6">
-        <div v-if="isDevMode" class="flex items-start justify-between rounded-xl border bg-muted/50 p-4">
-          <div>
-            <p class="text-sm font-medium">Тестовый доступ для dev-среды</p>
-            <p class="text-sm text-muted-foreground">admin@admin.ru / 12345678</p>
-          </div>
-          <Button variant="secondary" size="sm" @click="fillDemoCredentials">Подставить</Button>
-        </div>
-
         <form class="space-y-5" @submit.prevent="submit">
           <div class="space-y-2">
             <Label for="email">Электронная почта</Label>

@@ -22,7 +22,7 @@ export default defineNuxtConfig({
   },
   app: {
     head: {
-      titleTemplate: "%s · AIMSORA",
+      titleTemplate: "%s · NPPWEB",
       htmlAttrs: {
         lang: "ru"
       },
