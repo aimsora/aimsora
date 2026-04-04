@@ -9,8 +9,7 @@ import type { AppUser, UserRole } from "~/graphql/types";
 export function useUsersData() {
   const apollo = useApollo();
   const toast = useToast();
-  const loading = ref(true);
-  const error = ref("");
+  const { loading, error, begin, fail, finish } = useRequestState(true);
   const users = ref<AppUser[]>([]);
   const pendingRoles = reactive<Record<string, UserRole>>({});
   const createDialogOpen = ref(false);
@@ -48,28 +47,31 @@ export function useUsersData() {
       !createErrors.value.password
   );
 
+  function syncPendingRoles(nextUsers: AppUser[]) {
+    for (const userId of Object.keys(pendingRoles)) {
+      delete pendingRoles[userId];
+    }
+
+    for (const user of nextUsers) {
+      pendingRoles[user.id] = user.role;
+    }
+  }
+
   async function load() {
-    loading.value = true;
-    error.value = "";
+    begin();
 
     try {
       const result = await apollo.query<{ users: AppUser[] }>({
         query: USERS_QUERY,
         fetchPolicy: "network-only"
       });
-      const data = result.data;
-
-      if (!data) {
-        throw new Error("Не удалось загрузить пользователей");
-      }
+      const data = requireRequestData(result.data, "Не удалось загрузить пользователей");
       users.value = data.users;
-      for (const user of data.users) {
-        pendingRoles[user.id] = user.role;
-      }
+      syncPendingRoles(data.users);
     } catch (caught) {
-      error.value = caught instanceof Error ? caught.message : "Не удалось загрузить пользователей";
+      fail(caught, "Не удалось загрузить пользователей");
     } finally {
-      loading.value = false;
+      finish();
     }
   }
 

@@ -22,7 +22,7 @@ const isDevMode = computed(
 
 function fillDemoCredentials() {
   email.value = "admin@admin.ru";
-  password.value = "admin";
+  password.value = "12345678";
 }
 
 function normalizeLoginError(message: string) {
@@ -102,7 +102,7 @@ async function submit() {
         <div v-if="isDevMode" class="flex items-start justify-between rounded-xl border bg-muted/50 p-4">
           <div>
             <p class="text-sm font-medium">Тестовый доступ для dev-среды</p>
-            <p class="text-sm text-muted-foreground">admin@admin.ru / admin</p>
+            <p class="text-sm text-muted-foreground">admin@admin.ru / 12345678</p>
           </div>
           <Button variant="secondary" size="sm" @click="fillDemoCredentials">Подставить</Button>
         </div>

@@ -56,6 +56,7 @@ export const ME_QUERY = gql`
 export const DASHBOARD_QUERY = gql`
   query DashboardSummary {
     dashboardSummary {
+      totalRecords
       totalProcurements
       activeSources
       runsLast24h
@@ -107,6 +108,7 @@ export const DASHBOARD_QUERY = gql`
         kind
         isActive
         procurementCount
+        recordCount
         runCount
         lastRunAt
       }

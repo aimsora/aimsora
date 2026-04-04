@@ -3,7 +3,7 @@ import type { Procurement, ProcurementPage, ProcurementStatus, Source } from "~/
 
 export function useProcurementsData() {
   const apollo = useApollo();
-  const loading = ref(false);
+  const { loading, error, begin, fail, finish } = useRequestState();
   const filters = reactive<{
     search: string;
     source: string;
@@ -13,7 +13,6 @@ export function useProcurementsData() {
     source: "",
     status: ""
   });
-  const error = ref("");
   const total = ref(0);
   const items = ref<Procurement[]>([]);
   const sources = ref<Source[]>([]);
@@ -26,11 +25,7 @@ export function useProcurementsData() {
         query: SOURCES_QUERY,
         fetchPolicy: "network-only"
       });
-      const data = result.data;
-
-      if (!data) {
-        throw new Error("Не удалось загрузить источники");
-      }
+      const data = requireRequestData(result.data, "Не удалось загрузить источники");
       sources.value = data.sources;
     } catch {
       sources.value = [];
@@ -38,8 +33,7 @@ export function useProcurementsData() {
   }
 
   async function load() {
-    loading.value = true;
-    error.value = "";
+    begin();
 
     try {
       const result = await apollo.query<{ procurementItems: ProcurementPage }>({
@@ -59,18 +53,14 @@ export function useProcurementsData() {
         },
         fetchPolicy: "network-only"
       });
-      const data = result.data;
-
-      if (!data) {
-        throw new Error("Не удалось загрузить закупки");
-      }
+      const data = requireRequestData(result.data, "Не удалось загрузить закупки");
 
       items.value = data.procurementItems.items;
       total.value = data.procurementItems.total;
     } catch (caught) {
-      error.value = caught instanceof Error ? caught.message : "Не удалось загрузить закупки";
+      fail(caught, "Не удалось загрузить закупки");
     } finally {
-      loading.value = false;
+      finish();
     }
   }
 

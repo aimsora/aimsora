@@ -2,7 +2,15 @@ export type UserRole = "USER" | "ANALYST" | "ADMIN";
 
 export type ProcurementStatus = "DRAFT" | "ACTIVE" | "CLOSED" | "ARCHIVED";
 
-export type SourceKind = "DEMO" | "FIND_TENDER";
+export type SourceKind =
+  | "DEMO"
+  | "FIND_TENDER"
+  | "EASUZ"
+  | "EIS"
+  | "RNP"
+  | "FEDRESURS"
+  | "FNS"
+  | "GISTORGI";
 
 export type SourceRunStatus = "PENDING" | "RUNNING" | "SUCCESS" | "PARTIAL" | "FAILED";
 
@@ -47,11 +55,13 @@ export type DashboardSourceSummaryItem = {
   kind: SourceKind;
   isActive: boolean;
   procurementCount: number;
+  recordCount: number;
   runCount: number;
   lastRunAt?: string | null;
 };
 
 export type DashboardSummary = {
+  totalRecords: number;
   totalProcurements: number;
   activeSources: number;
   runsLast24h: number;

@@ -3,30 +3,24 @@ import type { DashboardSummary } from "~/graphql/types";
 
 export function useDashboardData() {
   const apollo = useApollo();
-  const loading = ref(true);
-  const error = ref("");
+  const { loading, error, begin, fail, finish } = useRequestState(true);
   const summary = ref<DashboardSummary | null>(null);
 
   async function load() {
-    loading.value = true;
-    error.value = "";
+    begin();
 
     try {
       const result = await apollo.query<{ dashboardSummary: DashboardSummary }>({
         query: DASHBOARD_QUERY,
         fetchPolicy: "network-only"
       });
-      const data = result.data;
-
-      if (!data) {
-        throw new Error("Не удалось загрузить дашборд");
-      }
+      const data = requireRequestData(result.data, "Не удалось загрузить дашборд");
 
       summary.value = data.dashboardSummary;
     } catch (caught) {
-      error.value = caught instanceof Error ? caught.message : "Не удалось загрузить дашборд";
+      fail(caught, "Не удалось загрузить дашборд");
     } finally {
-      loading.value = false;
+      finish();
     }
   }
 

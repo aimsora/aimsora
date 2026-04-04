@@ -22,9 +22,9 @@ const summaryCards = computed(() => {
 
   return [
     {
-      label: "Закупки в базе",
-      value: formatCompactNumber(summary.value.totalProcurements),
-      hint: "Общий объём опубликованных записей"
+      label: "Объекты в базе",
+      value: formatCompactNumber(summary.value.totalRecords),
+      hint: `Закупки: ${formatCompactNumber(summary.value.totalProcurements)}`
     },
     {
       label: "Активные источники",
@@ -198,7 +198,7 @@ onMounted(async () => {
       <Card>
         <CardHeader>
           <CardTitle>Покрытие по источникам</CardTitle>
-          <CardDescription>Где сосредоточен основной объём публикаций.</CardDescription>
+          <CardDescription>Где сосредоточен основной объём загруженных записей.</CardDescription>
         </CardHeader>
         <CardContent class="space-y-4">
           <div
@@ -314,7 +314,8 @@ onMounted(async () => {
                 </Badge>
               </div>
               <div class="mt-3 grid gap-1 text-sm text-muted-foreground">
-                <p>Публикаций: {{ formatNumber(source.procurementCount) }}</p>
+                <p>Записей: {{ formatNumber(source.recordCount) }}</p>
+                <p>Закупок: {{ formatNumber(source.procurementCount) }}</p>
                 <p>Запусков: {{ formatNumber(source.runCount) }}</p>
                 <p>Последний запуск: {{ formatDateTime(source.lastRunAt) }}</p>
               </div>

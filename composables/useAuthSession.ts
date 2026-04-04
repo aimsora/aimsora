@@ -76,7 +76,7 @@ export function useAuthSession() {
     await apollo.clearStore().catch(() => undefined);
   }
 
-  async function fetchCurrentUser() {
+  async function fetchCurrentUser(options?: { clearOnFailure?: boolean }) {
     hydrateFromStorage();
 
     if (!accessToken.value) {
@@ -100,7 +100,9 @@ export function useAuthSession() {
       }
       return true;
     } catch {
-      await clearSession();
+      if (options?.clearOnFailure ?? true) {
+        await clearSession();
+      }
       return false;
     }
   }
@@ -149,9 +151,24 @@ export function useAuthSession() {
 
     initializationTask = (async () => {
       if (!accessToken.value && refreshToken.value) {
-        await refresh();
-      } else if (accessToken.value && !user.value) {
-        await fetchCurrentUser();
+        const refreshed = await refresh();
+        if (refreshed) {
+          await fetchCurrentUser();
+        }
+      } else if (accessToken.value) {
+        const currentUserLoaded = await fetchCurrentUser({ clearOnFailure: false });
+
+        if (!currentUserLoaded && refreshToken.value) {
+          const refreshed = await refresh();
+
+          if (refreshed) {
+            await fetchCurrentUser();
+          } else {
+            await clearSession();
+          }
+        } else if (!currentUserLoaded) {
+          await clearSession();
+        }
       }
 
       initialized.value = true;

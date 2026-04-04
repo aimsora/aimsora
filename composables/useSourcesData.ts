@@ -3,14 +3,12 @@ import type { Source, SourceRun } from "~/graphql/types";
 
 export function useSourcesData() {
   const apollo = useApollo();
-  const loading = ref(true);
-  const error = ref("");
+  const { loading, error, begin, fail, finish } = useRequestState(true);
   const sources = ref<Source[]>([]);
   const runs = ref<SourceRun[]>([]);
 
   async function load() {
-    loading.value = true;
-    error.value = "";
+    begin();
 
     try {
       const [sourcesResult, runsResult] = await Promise.all([
@@ -25,16 +23,15 @@ export function useSourcesData() {
         })
       ]);
 
-      if (!sourcesResult.data || !runsResult.data) {
-        throw new Error("Не удалось загрузить источники");
-      }
+      const sourcesData = requireRequestData(sourcesResult.data, "Не удалось загрузить источники");
+      const runsData = requireRequestData(runsResult.data, "Не удалось загрузить источники");
 
-      sources.value = sourcesResult.data.sources;
-      runs.value = runsResult.data.sourceRuns;
+      sources.value = sourcesData.sources;
+      runs.value = runsData.sourceRuns;
     } catch (caught) {
-      error.value = caught instanceof Error ? caught.message : "Не удалось загрузить источники";
+      fail(caught, "Не удалось загрузить источники");
     } finally {
-      loading.value = false;
+      finish();
     }
   }
 

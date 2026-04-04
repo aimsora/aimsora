@@ -39,12 +39,16 @@ function isActive(href: string) {
         class="flex items-center gap-3 rounded-xl border border-sidebar-border bg-background/60 px-3 py-3"
         :class="!sidebar.open.value && !sidebar.isMobile.value ? 'justify-center px-2' : ''"
       >
-        <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-          <LayoutDashboard class="h-4 w-4" />
+        <div class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-sidebar-border bg-white p-1.5">
+          <img
+            src="/nppweb.png"
+            alt="AIMSORA"
+            class="h-full w-full object-contain"
+          />
         </div>
         <div v-if="sidebar.open.value || sidebar.isMobile.value" class="min-w-0">
           <p class="text-xs uppercase tracking-[0.16em] text-muted-foreground">AIMSORA</p>
-          <p class="truncate text-sm font-semibold text-foreground">Мониторинг закупок</p>
+          <p class="truncate text-sm font-semibold text-foreground">Procurement Monitor</p>
         </div>
       </div>
     </SidebarHeader>
@@ -78,20 +82,7 @@ function isActive(href: string) {
     </SidebarContent>
 
     <SidebarFooter>
-      <div
-        class="rounded-xl border border-sidebar-border bg-background/60 p-3"
-        :class="!sidebar.open.value && !sidebar.isMobile.value ? 'px-2' : ''"
-      >
-        <template v-if="sidebar.open.value || sidebar.isMobile.value">
-          <p class="text-sm font-medium">Защищённый контур</p>
-          <p class="mt-1 text-xs text-muted-foreground">
-            Внутренний интерфейс без landing-слоя, сразу ведущий в рабочий dashboard.
-          </p>
-        </template>
-        <template v-else>
-          <div class="mx-auto h-2 w-2 rounded-full bg-success" />
-        </template>
-      </div>
+      <UserMenu :collapsed="!sidebar.open.value && !sidebar.isMobile.value" />
     </SidebarFooter>
   </Sidebar>
 </template>

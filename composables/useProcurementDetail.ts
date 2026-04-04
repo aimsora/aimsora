@@ -3,13 +3,11 @@ import type { Procurement } from "~/graphql/types";
 
 export function useProcurementDetail() {
   const apollo = useApollo();
-  const loading = ref(true);
-  const error = ref("");
+  const { loading, error, begin, fail, finish } = useRequestState(true);
   const item = ref<Procurement | null>(null);
 
   async function load(id: string) {
-    loading.value = true;
-    error.value = "";
+    begin();
 
     try {
       const result = await apollo.query<{ procurementItem: Procurement | null }>({
@@ -17,17 +15,13 @@ export function useProcurementDetail() {
         variables: { id },
         fetchPolicy: "network-only"
       });
-      const data = result.data;
-
-      if (!data) {
-        throw new Error("Не удалось загрузить закупку");
-      }
+      const data = requireRequestData(result.data, "Не удалось загрузить закупку");
 
       item.value = data.procurementItem;
     } catch (caught) {
-      error.value = caught instanceof Error ? caught.message : "Не удалось загрузить закупку";
+      fail(caught, "Не удалось загрузить закупку");
     } finally {
-      loading.value = false;
+      finish();
     }
   }
 
