@@ -64,6 +64,7 @@ export const DASHBOARD_QUERY = gql`
       activeSources
       runsLast24h
       lastPublishedAt
+      lastUpdatedAt
       bySource {
         source
         count

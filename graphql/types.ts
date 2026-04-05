@@ -65,6 +65,7 @@ export type DashboardSummary = {
   activeSources: number;
   runsLast24h: number;
   lastPublishedAt?: string | null;
+  lastUpdatedAt?: string | null;
   bySource: DashboardSourceStat[];
   procurementsByStatus: DashboardProcurementStatusStat[];
   procurementsOverTime: DashboardTimelinePoint[];

@@ -156,7 +156,7 @@ onMounted(async () => {
               <TableHead>Заказчик</TableHead>
               <TableHead>Сумма</TableHead>
               <TableHead>Статус</TableHead>
-              <TableHead>Опубликована</TableHead>
+              <TableHead>Обновлена</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -178,7 +178,12 @@ onMounted(async () => {
               <TableCell>
                 <Badge :variant="badgeVariant(item.status)">{{ formatEnumLabel(item.status) }}</Badge>
               </TableCell>
-              <TableCell>{{ formatDate(item.publishedAt) }}</TableCell>
+              <TableCell>
+                <div class="space-y-1">
+                  <p>{{ formatDateTime(item.updatedAt) }}</p>
+                  <p class="text-xs text-muted-foreground">Публикация: {{ formatDate(item.publishedAt) }}</p>
+                </div>
+              </TableCell>
             </TableRow>
           </TableBody>
         </Table>

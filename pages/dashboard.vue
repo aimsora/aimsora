@@ -66,7 +66,7 @@ const businessCards = computed(() => {
     {
       label: "Готовые отчёты",
       value: formatNumber(reportsData.reports.value.filter((item) => item.status === "READY").length),
-      hint: `Последняя публикация: ${formatDateTime(summary.value.lastPublishedAt)}`
+      hint: `Последнее обновление данных: ${formatDateTime(summary.value.lastUpdatedAt)}`
     }
   ];
 });
@@ -350,7 +350,7 @@ onMounted(async () => {
                   <TableHead>Источник</TableHead>
                   <TableHead>Сумма</TableHead>
                   <TableHead>Статус</TableHead>
-                  <TableHead>Опубликована</TableHead>
+                  <TableHead>Обновлена</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -371,7 +371,7 @@ onMounted(async () => {
                   <TableCell>
                     <Badge :variant="badgeVariant(item.status)">{{ formatEnumLabel(item.status) }}</Badge>
                   </TableCell>
-                  <TableCell>{{ formatDate(item.publishedAt) }}</TableCell>
+                  <TableCell>{{ formatDateTime(item.updatedAt) }}</TableCell>
                 </TableRow>
               </TableBody>
             </Table>

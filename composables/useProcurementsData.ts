@@ -47,7 +47,7 @@ export function useProcurementsData() {
                   ...(filters.status ? { status: filters.status } : {})
                 }
               : undefined,
-          sort: { field: "PUBLISHED_AT", direction: "DESC" },
+          sort: { field: "UPDATED_AT", direction: "DESC" },
           limit: pageSize,
           offset: (page.value - 1) * pageSize
         },
