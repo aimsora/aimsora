@@ -1,4 +1,4 @@
-name: Deploy AIMSORA Site
+name: Deploy NPPWEB Site
 
 on:
   push:
@@ -33,16 +33,16 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build
-        run: npm run build
+      - name: Generate static site
+        run: npx nuxt generate
 
       - name: Disable Jekyll
-        run: touch dist/.nojekyll
+        run: touch .output/public/.nojekyll
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./dist
+          path: ./.output/public
 
   deploy:
     needs: build

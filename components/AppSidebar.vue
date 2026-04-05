@@ -49,14 +49,14 @@ function isActive(href: string) {
   <Sidebar class="border-sidebar-border bg-sidebar/95 backdrop-blur supports-[backdrop-filter]:bg-sidebar/80">
     <SidebarHeader>
       <div
-        class="flex items-center gap-3 rounded-xl border border-sidebar-border bg-background/60 px-3 py-3"
+        class="flex items-center gap-3 rounded-2xl bg-background/55 px-3 py-3 shadow-sm ring-1 ring-sidebar-border/50"
         :class="!sidebar.open.value && !sidebar.isMobile.value ? 'justify-center px-2' : ''"
       >
-        <div class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-sidebar-border bg-white p-1.5">
+        <div class="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white/95 shadow-sm ring-1 ring-sidebar-border/40">
           <img
             :src="brandLogo"
             alt="NPPWEB"
-            class="h-full w-full object-contain"
+            class="h-full w-full rounded-[inherit] object-cover"
           />
         </div>
         <div v-if="sidebar.open.value || sidebar.isMobile.value" class="min-w-0">
