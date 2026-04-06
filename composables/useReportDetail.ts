@@ -17,7 +17,7 @@ export function useReportDetail() {
       });
       const data = requireRequestData(result.data, "Не удалось загрузить отчёт");
 
-      item.value = data.report;
+      item.value = normalizeReportDetail(data.report);
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : "Не удалось загрузить отчёт";
 
@@ -51,4 +51,39 @@ export function useReportDetail() {
     item,
     load
   };
+}
+
+function normalizeReportDetail(report: ReportDetail | null): ReportDetail | null {
+  if (!report) {
+    return null;
+  }
+
+  return {
+    ...report,
+    metrics: asArray(report.metrics),
+    highlights: asArray(report.highlights),
+    scores: asArray(report.scores),
+    actions: asArray(report.actions),
+    deadlinePressure: asArray(report.deadlinePressure),
+    statusMix: asArray(report.statusMix),
+    amountDistribution: asArray(report.amountDistribution),
+    customerExposure: asArray(report.customerExposure),
+    sourceContribution: asArray(report.sourceContribution),
+    sourceHealth: asArray(report.sourceHealth),
+    supplierExposure: asArray(report.supplierExposure),
+    supplierDueDiligence: asArray(report.supplierDueDiligence).map((item) => ({
+      ...item,
+      flags: asArray(item.flags)
+    })),
+    nppStationOrders: asArray(report.nppStationOrders).map((item) => ({
+      ...item,
+      orders: asArray(item.orders)
+    })),
+    recentSourceRuns: asArray(report.recentSourceRuns),
+    recentProcurements: asArray(report.recentProcurements)
+  };
+}
+
+function asArray<T>(value: T[] | null | undefined): T[] {
+  return Array.isArray(value) ? value : [];
 }

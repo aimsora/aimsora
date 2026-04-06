@@ -35,28 +35,28 @@ const description = computed(() => {
 
 const metricCards = computed(() => detail.item.value?.metrics ?? []);
 const scoreCards = computed(() => detail.item.value?.scores ?? []);
-const hasSupplierDueDiligence = computed(() => (detail.item.value?.supplierDueDiligence.length ?? 0) > 0);
-const hasNppStationOrders = computed(() => (detail.item.value?.nppStationOrders.length ?? 0) > 0);
+const hasSupplierDueDiligence = computed(() => (detail.item.value?.supplierDueDiligence?.length ?? 0) > 0);
+const hasNppStationOrders = computed(() => (detail.item.value?.nppStationOrders?.length ?? 0) > 0);
 const hasMarketConcentration = computed(
   () =>
-    (detail.item.value?.supplierExposure.length ?? 0) > 0 ||
-    (detail.item.value?.customerExposure.length ?? 0) > 0
+    (detail.item.value?.supplierExposure?.length ?? 0) > 0 ||
+    (detail.item.value?.customerExposure?.length ?? 0) > 0
 );
 const hasPortfolioStructure = computed(
   () =>
-    (detail.item.value?.deadlinePressure.length ?? 0) > 0 ||
-    (detail.item.value?.statusMix.length ?? 0) > 0 ||
-    (detail.item.value?.amountDistribution.length ?? 0) > 0
+    (detail.item.value?.deadlinePressure?.length ?? 0) > 0 ||
+    (detail.item.value?.statusMix?.length ?? 0) > 0 ||
+    (detail.item.value?.amountDistribution?.length ?? 0) > 0
 );
 const hasSourceAnalytics = computed(
   () =>
-    (detail.item.value?.sourceContribution.length ?? 0) > 0 ||
-    (detail.item.value?.sourceHealth.length ?? 0) > 0
+    (detail.item.value?.sourceContribution?.length ?? 0) > 0 ||
+    (detail.item.value?.sourceHealth?.length ?? 0) > 0
 );
 const hasOperationalAnalytics = computed(
   () =>
-    (detail.item.value?.recentSourceRuns.length ?? 0) > 0 ||
-    (detail.item.value?.recentProcurements.length ?? 0) > 0
+    (detail.item.value?.recentSourceRuns?.length ?? 0) > 0 ||
+    (detail.item.value?.recentProcurements?.length ?? 0) > 0
 );
 const reportSections = computed(() => {
   const sections = [
@@ -101,10 +101,10 @@ const reportSections = computed(() => {
   return sections.filter((section) => section.visible);
 });
 const deadlineMax = computed(() =>
-  Math.max(...(detail.item.value?.deadlinePressure.map((item) => item.count) ?? [1]), 1)
+  Math.max(...(detail.item.value?.deadlinePressure?.map((item) => item.count) ?? [1]), 1)
 );
 const statusMixMax = computed(() =>
-  Math.max(...(detail.item.value?.statusMix.map((item) => item.count) ?? [1]), 1)
+  Math.max(...(detail.item.value?.statusMix?.map((item) => item.count) ?? [1]), 1)
 );
 
 function reportTypeLabel(reportType?: string | null) {

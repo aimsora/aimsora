@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { getProcurementNppFocus } from "~/utils/procurement-focus";
+import { NPP_FOCUS_OPTIONS, getProcurementNppFocus } from "~/utils/procurement-focus";
 
 definePageMeta({
   title: "Дашборд",
@@ -14,6 +14,10 @@ const shortDateFormatter = new Intl.DateTimeFormat("ru-RU", {
   day: "2-digit",
   month: "short"
 });
+
+const allRecentSourcesValue = "__ALL_RECENT_SOURCES__";
+const allRecentStatusesValue = "__ALL_RECENT_STATUSES__";
+const allRecentNppFocusValue = "__ALL_RECENT_NPP_FOCUS__";
 
 const auth = useAuthSession();
 const dashboard = useDashboardData();
@@ -33,6 +37,11 @@ const canGenerateReports = computed(() => auth.can("reports.generate"));
 const canViewScraperOverview = computed(
   () => auth.can("scraper-admin.view") || auth.can("scraper-admin.manage")
 );
+
+const recentProcurementSearch = ref("");
+const selectedRecentSource = ref(allRecentSourcesValue);
+const selectedRecentStatus = ref(allRecentStatusesValue);
+const selectedRecentNppFocus = ref(allRecentNppFocusValue);
 
 const loading = computed(
   () =>
@@ -218,9 +227,65 @@ const timelineItems = computed(() =>
   }))
 );
 
+const recentProcurements = computed(() => summary.value?.recentProcurements ?? []);
+
 const nppRecentProcurements = computed(() =>
-  (summary.value?.recentProcurements ?? []).filter((item) => procurementFocusLabel(item.rawPayload))
+  recentProcurements.value.filter((item) => procurementFocusLabel(item.rawPayload))
 );
+
+const recentProcurementSourceOptions = computed(() =>
+  Array.from(new Set(recentProcurements.value.map((item) => item.source)))
+    .sort((left, right) => left.localeCompare(right, "ru"))
+    .map((source) => ({
+      label: source,
+      value: source
+    }))
+);
+
+const recentProcurementStatusOptions = [
+  { label: "Все статусы", value: allRecentStatusesValue },
+  { label: "Черновик", value: "DRAFT" },
+  { label: "Активна", value: "ACTIVE" },
+  { label: "Завершена", value: "CLOSED" },
+  { label: "В архиве", value: "ARCHIVED" }
+];
+
+const filteredRecentProcurements = computed(() => {
+  const query = recentProcurementSearch.value.trim().toLowerCase();
+
+  return recentProcurements.value.filter((item) => {
+    const station = procurementFocusLabel(item.rawPayload);
+
+    if (selectedRecentSource.value !== allRecentSourcesValue && item.source !== selectedRecentSource.value) {
+      return false;
+    }
+
+    if (selectedRecentStatus.value !== allRecentStatusesValue && item.status !== selectedRecentStatus.value) {
+      return false;
+    }
+
+    if (selectedRecentNppFocus.value !== allRecentNppFocusValue && station !== selectedRecentNppFocus.value) {
+      return false;
+    }
+
+    if (!query) {
+      return true;
+    }
+
+    const haystack = [
+      item.title,
+      item.externalId,
+      item.customer,
+      item.source,
+      station
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+    return haystack.includes(query);
+  });
+});
 
 const nppFocusCards = computed(() => {
   const items = nppRecentProcurements.value;
@@ -248,8 +313,12 @@ const nppFocusCards = computed(() => {
   ];
 });
 
-const nppStationItems = computed(() => {
-  const counters = new Map<string, number>();
+const nppStationGroups = computed(() => {
+  const groups = new Map<string, typeof nppRecentProcurements.value>();
+
+  for (const station of NPP_FOCUS_OPTIONS) {
+    groups.set(station, []);
+  }
 
   for (const item of nppRecentProcurements.value) {
     const station = procurementFocusLabel(item.rawPayload);
@@ -257,18 +326,24 @@ const nppStationItems = computed(() => {
       continue;
     }
 
-    counters.set(station, (counters.get(station) ?? 0) + 1);
+    const stationItems = groups.get(station) ?? [];
+    stationItems.push(item);
+    groups.set(station, stationItems);
   }
 
-  return Array.from(counters.entries())
-    .sort((left, right) => right[1] - left[1])
-    .map(([station, count]) => ({
-      label: station,
-      value: count,
-      valueLabel: formatNumber(count),
-      note: "Свежих закупок в окне дашборда",
-      accent: "primary" as const
-    }));
+  return Array.from(groups.entries())
+    .map(([station, items]) => ({
+      station,
+      count: items.length,
+      items: [...items].sort(
+        (left, right) =>
+          new Date(right.updatedAt ?? 0).getTime() - new Date(left.updatedAt ?? 0).getTime()
+      )
+    }))
+    .sort(
+      (left, right) =>
+        right.count - left.count || left.station.localeCompare(right.station, "ru")
+    );
 });
 
 const recentReports = computed(() => reportsData.reports.value.slice(0, 4));
@@ -620,32 +695,40 @@ onMounted(async () => {
             />
           </div>
 
-          <div class="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
-            <Card class="border-dashed">
-              <CardHeader>
-                <CardTitle class="text-base">Станции в текущем окне</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <MetricBarList :items="nppStationItems" />
-              </CardContent>
-            </Card>
-
-            <Card class="border-dashed">
-              <CardHeader>
-                <CardTitle class="text-base">Свежие атомные закупки</CardTitle>
+          <div class="grid gap-4 xl:grid-cols-2">
+            <Card
+              v-for="station in nppStationGroups"
+              :key="station.station"
+              class="border-dashed"
+            >
+              <CardHeader class="gap-3">
+                <div class="flex items-start justify-between gap-3">
+                  <div class="space-y-1">
+                    <CardTitle class="text-base">{{ station.station }}</CardTitle>
+                    <CardDescription>
+                      Поток закупок по станции в текущем окне дашборда.
+                    </CardDescription>
+                  </div>
+                  <Badge variant="secondary">
+                    {{ formatNumber(station.count) }}
+                  </Badge>
+                </div>
               </CardHeader>
               <CardContent class="space-y-3">
                 <div
-                  v-for="item in nppRecentProcurements"
+                  v-if="station.items.length === 0"
+                  class="rounded-2xl border border-dashed border-border/70 bg-muted/10 p-4 text-sm text-muted-foreground"
+                >
+                  В текущем окне свежих закупок по этой станции пока нет.
+                </div>
+                <div
+                  v-for="item in station.items"
                   :key="item.id"
                   class="rounded-2xl border border-border/70 bg-muted/15 p-4"
                 >
                   <div class="flex items-start justify-between gap-3">
                     <div class="space-y-1">
                       <p class="text-sm font-semibold">{{ item.title }}</p>
-                      <p class="text-xs font-medium text-primary">
-                        Цель АЭС: {{ procurementFocusLabel(item.rawPayload) }}
-                      </p>
                       <p class="text-sm text-muted-foreground">
                         Заказчик: {{ item.customer || "Не указан" }}
                       </p>
@@ -673,7 +756,98 @@ onMounted(async () => {
               Для атомной темы отдельно выводится станция назначения, если она распознана в данных ЕИС.
             </CardDescription>
           </CardHeader>
-          <CardContent class="px-0">
+          <CardContent class="space-y-4">
+            <div class="flex flex-wrap items-center gap-2">
+              <Badge variant="secondary">
+                Найдено: {{ formatNumber(filteredRecentProcurements.length) }}
+              </Badge>
+              <Badge variant="outline">
+                Всего в окне: {{ formatNumber(recentProcurements.length) }}
+              </Badge>
+            </div>
+
+            <div class="grid gap-4 lg:grid-cols-[1.4fr_1fr_1fr_1fr_auto]">
+              <div class="space-y-2">
+                <Label for="dashboard-procurement-search">Поиск</Label>
+                <Input
+                  id="dashboard-procurement-search"
+                  v-model="recentProcurementSearch"
+                  placeholder="Название, ID, заказчик или станция"
+                />
+              </div>
+
+              <div class="space-y-2">
+                <Label for="dashboard-procurement-source">Источник</Label>
+                <Select v-model="selectedRecentSource">
+                  <SelectTrigger id="dashboard-procurement-source">
+                    <SelectValue placeholder="Все источники" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem :value="allRecentSourcesValue">Все источники</SelectItem>
+                    <SelectItem
+                      v-for="source in recentProcurementSourceOptions"
+                      :key="source.value"
+                      :value="source.value"
+                    >
+                      {{ source.label }}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div class="space-y-2">
+                <Label for="dashboard-procurement-status">Статус</Label>
+                <Select v-model="selectedRecentStatus">
+                  <SelectTrigger id="dashboard-procurement-status">
+                    <SelectValue placeholder="Все статусы" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem
+                      v-for="status in recentProcurementStatusOptions"
+                      :key="status.value"
+                      :value="status.value"
+                    >
+                      {{ status.label }}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div class="space-y-2">
+                <Label for="dashboard-procurement-npp-focus">Цель АЭС</Label>
+                <Select v-model="selectedRecentNppFocus">
+                  <SelectTrigger id="dashboard-procurement-npp-focus">
+                    <SelectValue placeholder="Все станции" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem :value="allRecentNppFocusValue">Все станции</SelectItem>
+                    <SelectItem
+                      v-for="station in NPP_FOCUS_OPTIONS"
+                      :key="station"
+                      :value="station"
+                    >
+                      {{ station }}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div class="flex items-end">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  @click="
+                    recentProcurementSearch = '';
+                    selectedRecentSource = allRecentSourcesValue;
+                    selectedRecentStatus = allRecentStatusesValue;
+                    selectedRecentNppFocus = allRecentNppFocusValue;
+                  "
+                >
+                  Сбросить
+                </Button>
+              </div>
+            </div>
+
             <Table>
               <TableHeader>
                 <TableRow>
@@ -686,7 +860,7 @@ onMounted(async () => {
               </TableHeader>
               <TableBody>
                 <TableRow
-                  v-for="item in summary.recentProcurements"
+                  v-for="item in filteredRecentProcurements"
                   :key="item.id"
                   class="cursor-pointer"
                   @click="navigateTo(`/procurements/${item.id}`)"
@@ -709,6 +883,11 @@ onMounted(async () => {
                     <Badge :variant="badgeVariant(item.status)">{{ formatEnumLabel(item.status) }}</Badge>
                   </TableCell>
                   <TableCell>{{ formatDateTime(item.updatedAt) }}</TableCell>
+                </TableRow>
+                <TableRow v-if="filteredRecentProcurements.length === 0">
+                  <TableCell colspan="5" class="py-10 text-center text-sm text-muted-foreground">
+                    По текущим фильтрам свежих закупок не найдено.
+                  </TableCell>
                 </TableRow>
               </TableBody>
             </Table>

@@ -163,18 +163,12 @@ const supplierExposureItems = computed(() =>
 );
 
 const nppTimelineItems = computed(() =>
-  (summary.value?.nppMonthlyDynamics ?? []).map((item, index) => ({
+  (summary.value?.nppMonthlyDynamics ?? []).map((item) => ({
     label: item.label,
-    shortLabel: item.label.split(" ")[0] ?? item.label,
+    shortLabel: compactMonthLabel(item.label),
     value: item.procurementCount,
-    valueLabel: formatNumber(item.procurementCount),
-    note: formatCurrency(item.totalAmount, "RUB"),
-    accent:
-      item.procurementCount === 0
-        ? ("muted" as const)
-        : index >= (summary.value?.nppMonthlyDynamics.length ?? 0) - 3
-          ? ("success" as const)
-          : ("primary" as const)
+    valueLabel: `${formatNumber(item.procurementCount)} карточек`,
+    note: `Сумма за месяц: ${formatCurrency(item.totalAmount, "RUB")}`
   }))
 );
 
@@ -251,6 +245,22 @@ function sourceRiskWeight(level?: string | null) {
   }
 
   return 1;
+}
+
+function compactMonthLabel(label: string) {
+  const parts = label
+    .replace(/\s*г\.?$/i, "")
+    .trim()
+    .split(/\s+/);
+
+  if (parts.length < 2) {
+    return label;
+  }
+
+  const month = parts[0] ?? label;
+  const year = parts[1]?.slice(-2);
+
+  return year ? `${month} ${year}` : month;
 }
 
 function riskBadgeVariant(level?: string | null) {
@@ -355,11 +365,11 @@ onMounted(() => {
         <CardHeader>
           <CardTitle>Динамика по месяцам с января 2025</CardTitle>
           <CardDescription>
-            Здесь видно, как атомный контур заполняется во времени: по каждому месяцу одновременно показаны количество карточек и сумма.
+            Интерактивный график показывает, как атомный контур заполняется по месяцам: количество карточек видно сразу, а сумма раскрывается по выбранной точке.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <MetricColumnChart
+          <MetricLineChartInteractive
             :items="nppTimelineItems"
             empty-text="После следующего цикла сбора здесь появится помесячная динамика по атомному контуру."
           />
