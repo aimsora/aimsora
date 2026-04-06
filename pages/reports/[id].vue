@@ -492,14 +492,14 @@ watchEffect(() => {
             :key="item.label"
             class="space-y-2"
           >
-            <div class="flex items-center justify-between gap-3">
+            <div class="flex items-start justify-between gap-3">
               <div class="min-w-0">
-                <p class="truncate text-sm font-medium">{{ item.label }}</p>
-                <p class="text-sm text-muted-foreground">
+                <p class="text-sm font-medium leading-5 break-words">{{ item.label }}</p>
+                <p class="mt-1 text-sm text-muted-foreground">
                   {{ formatNumber(item.procurementCount) }} закупок · {{ formatCurrency(item.totalAmount, "RUB") }}
                 </p>
               </div>
-              <Badge variant="secondary">{{ formatPercent(item.sharePercent) }}</Badge>
+              <Badge variant="secondary" class="shrink-0 self-start">{{ formatPercent(item.sharePercent) }}</Badge>
             </div>
             <div class="h-2 rounded-full bg-muted">
               <div
@@ -547,14 +547,14 @@ watchEffect(() => {
                 :key="item.supplier"
                 class="space-y-2"
               >
-                <div class="flex items-center justify-between gap-3">
+                <div class="flex items-start justify-between gap-3">
                   <div class="min-w-0">
-                    <p class="truncate text-sm font-medium">{{ item.supplier }}</p>
-                    <p class="text-sm text-muted-foreground">
+                    <p class="text-sm font-medium leading-5 break-words">{{ item.supplier }}</p>
+                    <p class="mt-1 text-sm text-muted-foreground">
                       {{ formatNumber(item.procurementCount) }} закупок · {{ formatCurrency(item.totalAmount, "RUB") }}
                     </p>
                   </div>
-                  <Badge variant="secondary">{{ formatPercent(item.sharePercent) }}</Badge>
+                  <Badge variant="secondary" class="shrink-0 self-start">{{ formatPercent(item.sharePercent) }}</Badge>
                 </div>
                 <div class="h-2 rounded-full bg-muted">
                   <div class="h-2 rounded-full bg-primary" :style="{ width: `${Math.max(8, item.sharePercent)}%` }" />
@@ -581,14 +581,14 @@ watchEffect(() => {
                 :key="item.customer"
                 class="space-y-2"
               >
-                <div class="flex items-center justify-between gap-3">
+                <div class="flex items-start justify-between gap-3">
                   <div class="min-w-0">
-                    <p class="truncate text-sm font-medium">{{ item.customer }}</p>
-                    <p class="text-sm text-muted-foreground">
+                    <p class="text-sm font-medium leading-5 break-words">{{ item.customer }}</p>
+                    <p class="mt-1 text-sm text-muted-foreground">
                       {{ formatNumber(item.procurementCount) }} закупок · {{ formatCurrency(item.totalAmount, "RUB") }}
                     </p>
                   </div>
-                  <Badge variant="secondary">{{ formatPercent(item.sharePercent) }}</Badge>
+                  <Badge variant="secondary" class="shrink-0 self-start">{{ formatPercent(item.sharePercent) }}</Badge>
                 </div>
                 <div class="h-2 rounded-full bg-muted">
                   <div class="h-2 rounded-full bg-primary" :style="{ width: `${Math.max(8, item.sharePercent)}%` }" />
