@@ -214,7 +214,7 @@ const timelineItems = computed(() =>
     shortLabel: shortDateFormatter.format(new Date(item.date)),
     value: item.count,
     valueLabel: formatNumber(item.count),
-    accent: "primary" as const
+    note: "Обновлённые закупки в этой точке временного ряда."
   }))
 );
 
@@ -590,13 +590,13 @@ onMounted(async () => {
         <CardHeader>
           <CardTitle>Динамика обновления</CardTitle>
           <CardDescription>
-            Показывает, как менялся объём обновлённых закупок за последние точки временного ряда.
+            Интерактивный line chart показывает, как менялся объём обновлённых закупок за последние точки временного ряда.
           </CardDescription>
         </CardHeader>
         <CardContent class="space-y-4">
-          <MetricColumnChart :items="timelineItems" />
+          <MetricLineChartInteractive :items="timelineItems" />
           <p class="text-sm leading-6 text-muted-foreground">
-            Диаграмма помогает быстро отличить ровный поток от провалов. Если столбцы заметно падают подряд,
+            График помогает быстро отличить ровный поток от провалов. Если линия заметно уходит вниз подряд,
             это уже повод проверить конкретные источники и последние прогоны.
           </p>
         </CardContent>
