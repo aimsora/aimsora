@@ -88,7 +88,7 @@ const sectionMeta: Record<
 const roleVisibleSections: Record<string, ReportSectionId[]> = {
   ANALYST: ["analytics", "suppliers", "npp"],
   DEVELOPER: ["parsers"],
-  ADMIN: ["analytics", "suppliers", "npp"]
+  ADMIN: ["analytics", "suppliers", "npp", "parsers"]
 };
 
 const visibleSections = computed(() => roleVisibleSections[auth.user.value?.role ?? ""] ?? []);
