@@ -18,6 +18,7 @@ const shortDateFormatter = new Intl.DateTimeFormat("ru-RU", {
 const allRecentSourcesValue = "__ALL_RECENT_SOURCES__";
 const allRecentStatusesValue = "__ALL_RECENT_STATUSES__";
 const allRecentNppFocusValue = "__ALL_RECENT_NPP_FOCUS__";
+const maxNppStationItems = 10;
 
 const auth = useAuthSession();
 const dashboard = useDashboardData();
@@ -333,10 +334,12 @@ const nppStationGroups = computed(() => {
     .map(([station, items]) => ({
       station,
       count: items.length,
-      items: [...items].sort(
-        (left, right) =>
-          new Date(right.updatedAt ?? 0).getTime() - new Date(left.updatedAt ?? 0).getTime()
-      )
+      items: [...items]
+        .sort(
+          (left, right) =>
+            new Date(right.updatedAt ?? 0).getTime() - new Date(left.updatedAt ?? 0).getTime()
+        )
+        .slice(0, maxNppStationItems)
     }))
     .sort(
       (left, right) =>
@@ -738,6 +741,12 @@ onMounted(async () => {
                     <span>{{ formatCurrency(item.amount, item.currency) }}</span>
                     <span>{{ formatDateTime(item.updatedAt) }}</span>
                   </div>
+                </div>
+                <div
+                  v-if="station.count > station.items.length"
+                  class="rounded-2xl border border-dashed border-border/70 bg-muted/10 p-4 text-sm text-muted-foreground"
+                >
+                  Показаны последние {{ formatNumber(station.items.length) }} из {{ formatNumber(station.count) }} записей по станции.
                 </div>
               </CardContent>
             </Card>
