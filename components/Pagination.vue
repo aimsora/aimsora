@@ -17,15 +17,39 @@ const emit = defineEmits<{
 }>();
 
 const pageCount = computed(() => Math.max(1, Math.ceil(props.total / props.pageSize)));
-const pages = computed(() => Array.from({ length: pageCount.value }, (_, index) => index + 1));
+const pages = computed<(number | string)[]>(() => {
+  if (pageCount.value <= 7) {
+    return Array.from({ length: pageCount.value }, (_, index) => index + 1);
+  }
+
+  const windowStart = Math.max(2, props.page - 1);
+  const windowEnd = Math.min(pageCount.value - 1, props.page + 1);
+  const items: Array<number | string> = [1];
+
+  if (windowStart > 2) {
+    items.push("start-ellipsis");
+  }
+
+  for (let value = windowStart; value <= windowEnd; value += 1) {
+    items.push(value);
+  }
+
+  if (windowEnd < pageCount.value - 1) {
+    items.push("end-ellipsis");
+  }
+
+  items.push(pageCount.value);
+
+  return items;
+});
 </script>
 
 <template>
-  <div class="flex items-center justify-between gap-4 border-t px-6 py-4">
-    <p class="text-sm text-muted-foreground">
+  <div class="flex flex-col gap-3 border-t px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+    <p class="min-w-0 text-sm text-muted-foreground">
       Страница {{ page }} из {{ pageCount }}
     </p>
-    <div class="flex items-center gap-2">
+    <div class="flex flex-wrap items-center gap-2">
       <Button
         variant="outline"
         size="sm"
@@ -35,15 +59,16 @@ const pages = computed(() => Array.from({ length: pageCount.value }, (_, index) 
         <ChevronLeft class="h-4 w-4" />
         Назад
       </Button>
-      <div class="hidden items-center gap-1 md:flex">
+      <div class="hidden max-w-full items-center gap-1 md:flex md:flex-wrap">
         <Button
           v-for="item in pages"
           :key="item"
+          :disabled="typeof item !== 'number'"
           :variant="item === page ? 'default' : 'ghost'"
           size="sm"
-          @click="emit('update:page', item)"
+          @click="typeof item === 'number' ? emit('update:page', item) : undefined"
         >
-          {{ item }}
+          {{ typeof item === "number" ? item : "…" }}
         </Button>
       </div>
       <Button
