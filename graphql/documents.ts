@@ -95,6 +95,24 @@ export const DASHBOARD_QUERY = gql`
         updatedAt
         rawPayload
       }
+      recentNppProcurements {
+        id
+        externalId
+        source
+        title
+        description
+        customer
+        supplier
+        amount
+        currency
+        status
+        publishedAt
+        deadlineAt
+        sourceUrl
+        createdAt
+        updatedAt
+        rawPayload
+      }
       recentSourceRuns {
         id
         runKey

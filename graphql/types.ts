@@ -70,6 +70,7 @@ export type DashboardSummary = {
   procurementsByStatus: DashboardProcurementStatusStat[];
   procurementsOverTime: DashboardTimelinePoint[];
   recentProcurements: Procurement[];
+  recentNppProcurements: Procurement[];
   recentSourceRuns: SourceRun[];
   sourcesSummary: DashboardSourceSummaryItem[];
 };

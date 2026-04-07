@@ -1,47 +1,23 @@
-const NPP_LABEL_PATTERN = /[А-ЯЁA-Z][^,.()]{2,}?атомная станция(?:-\d+)?/i;
+const STATION_NAME_ENDINGS = "(?:ая|ой|ую|ое|ом|ие|их)?";
+const ATOMIC_LABEL_PATTERN =
+  "(?:атомн(?:ая|ой|ую|ое|ом|ых)?\\s+станци(?:я|и|ю|е|ей|ям|ями|ях)|аэс(?:-[а-яa-z]+)*)";
+const NPP_LABEL_PATTERN = /[А-ЯЁA-Z][^,.()]{2,}?(?:атомн(?:ая|ой|ую|ое|ом)? станци(?:я|и|ю|е|ей)|АЭС(?:-[А-ЯA-Z]+)*)/i;
 
 const NPP_FOCUS_MATCHERS = [
-  {
-    canonical: "Балаковская атомная станция",
-    variants: ["балаковская атомная станция", "балаковская аэс", "балаковская аэс-авто"]
-  },
-  {
-    canonical: "Белоярская атомная станция",
-    variants: ["белоярская атомная станция", "белоярская аэс"]
-  },
-  {
-    canonical: "Билибинская атомная станция",
-    variants: ["билибинская атомная станция", "билибинская аэс"]
-  },
-  {
-    canonical: "Калининская атомная станция",
-    variants: ["калининская атомная станция", "калининская аэс", "калининская аэс-сервис"]
-  },
-  {
-    canonical: "Кольская атомная станция",
-    variants: ["кольская атомная станция", "кольская аэс"]
-  },
-  {
-    canonical: "Курская атомная станция",
-    variants: ["курская атомная станция", "курская аэс", "курская аэс-сервис"]
-  },
-  {
-    canonical: "Ленинградская атомная станция",
-    variants: ["ленинградская атомная станция", "ленинградская аэс", "ленинградская аэс-авто"]
-  },
-  {
-    canonical: "Нововоронежская атомная станция",
-    variants: ["нововоронежская атомная станция", "нововоронежская аэс"]
-  },
-  {
-    canonical: "Ростовская атомная станция",
-    variants: ["ростовская атомная станция", "ростовская аэс"]
-  },
-  {
-    canonical: "Смоленская атомная станция",
-    variants: ["смоленская атомная станция", "смоленская аэс", "смоленская аэс-сервис"]
-  }
-] as const;
+  { canonical: "Балаковская атомная станция", stem: "балаковск" },
+  { canonical: "Белоярская атомная станция", stem: "белоярск" },
+  { canonical: "Билибинская атомная станция", stem: "билибинск" },
+  { canonical: "Калининская атомная станция", stem: "калининск" },
+  { canonical: "Кольская атомная станция", stem: "кольск" },
+  { canonical: "Курская атомная станция", stem: "курск" },
+  { canonical: "Ленинградская атомная станция", stem: "ленинградск" },
+  { canonical: "Нововоронежская атомная станция", stem: "нововоронежск" },
+  { canonical: "Ростовская атомная станция", stem: "ростовск" },
+  { canonical: "Смоленская атомная станция", stem: "смоленск" }
+].map((item) => ({
+  canonical: item.canonical,
+  pattern: new RegExp(`${item.stem}${STATION_NAME_ENDINGS}\\s+${ATOMIC_LABEL_PATTERN}`, "i")
+}));
 
 export const NPP_FOCUS_OPTIONS = NPP_FOCUS_MATCHERS.map((item) => item.canonical) as ReadonlyArray<string>;
 
@@ -61,19 +37,24 @@ export function getProcurementNppFocus(rawPayload?: Record<string, unknown> | nu
     return matchedQuery.match(NPP_LABEL_PATTERN)?.[0] ?? matchedQuery;
   }
 
-  const searchHaystack = [matchedQuery, asString(sourceSpecificData?.customerName)]
+  const searchHaystack = [
+    matchedQuery,
+    asString(sourceSpecificData?.customerName),
+    asString(sourceSpecificData?.supplierName),
+    asString(sourceSpecificData?.title),
+    asString(sourceSpecificData?.description)
+  ]
     .filter(Boolean)
     .join(" ")
-    .toLowerCase();
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
 
-  if (searchHaystack) {
-    return (
-      NPP_FOCUS_MATCHERS.find((item) => item.variants.some((variant) => searchHaystack.includes(variant)))
-        ?.canonical ?? null
-    );
+  if (!searchHaystack) {
+    return null;
   }
 
-  return null;
+  return NPP_FOCUS_MATCHERS.find((item) => item.pattern.test(searchHaystack))?.canonical ?? null;
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {

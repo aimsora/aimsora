@@ -229,9 +229,7 @@ const timelineItems = computed(() =>
 
 const recentProcurements = computed(() => summary.value?.recentProcurements ?? []);
 
-const nppRecentProcurements = computed(() =>
-  recentProcurements.value.filter((item) => procurementFocusLabel(item.rawPayload))
-);
+const nppRecentProcurements = computed(() => summary.value?.recentNppProcurements ?? []);
 
 const recentProcurementSourceOptions = computed(() =>
   Array.from(new Set(recentProcurements.value.map((item) => item.source)))
@@ -681,7 +679,7 @@ onMounted(async () => {
         <CardHeader>
           <CardTitle>Закупки для АЭС России</CardTitle>
           <CardDescription>
-            Отдельный атомный слой показывает не только юридического заказчика, но и станцию назначения, если она выделена из карточки ЕИС.
+            Отдельный атомный слой теперь считается по собственному окну атомных закупок, чтобы активность АЭС не терялась на фоне общего потока.
           </CardDescription>
         </CardHeader>
         <CardContent class="space-y-6">
@@ -706,7 +704,7 @@ onMounted(async () => {
                   <div class="space-y-1">
                     <CardTitle class="text-base">{{ station.station }}</CardTitle>
                     <CardDescription>
-                      Поток закупок по станции в текущем окне дашборда.
+                      Поток закупок по станции в выделенном атомном окне дашборда.
                     </CardDescription>
                   </div>
                   <Badge variant="secondary">
