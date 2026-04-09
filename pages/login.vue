@@ -51,9 +51,9 @@ async function submit() {
 
 <template>
   <div class="grid w-full max-w-5xl gap-8 lg:grid-cols-[1.1fr_0.9fr]">
-    <div class="hidden rounded-3xl border bg-background p-10 shadow-sm lg:flex lg:flex-col lg:justify-between">
-      <div class="space-y-6">
-        <Badge variant="outline" class="w-fit">NPPWEB</Badge>
+    <div class="hidden rounded-3xl border bg-background p-10 shadow-sm lg:flex lg:items-center lg:justify-center">
+      <div class="space-y-6 text-center">
+        <Badge variant="outline" class="mx-auto w-fit">NPPWEB</Badge>
         <div class="space-y-3">
           <h1 class="max-w-md text-4xl font-semibold tracking-tight text-balance">
             Платформа мониторинга закупок в едином рабочем контуре.

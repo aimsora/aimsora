@@ -121,19 +121,54 @@ export function formatCurrency(amount?: number | null, currency?: string | null)
     return "Нет данных";
   }
 
-  if (!currency) {
+  const normalizedCurrency = normalizeDisplayCurrency(currency);
+
+  if (!normalizedCurrency) {
     return formatNumber(amount);
   }
 
   try {
     return new Intl.NumberFormat("ru-RU", {
       style: "currency",
-      currency,
+      currency: normalizedCurrency,
       maximumFractionDigits: 0
     }).format(amount);
   } catch {
-    return `${formatNumber(amount)} ${currency}`;
+    return formatNumber(amount);
   }
+}
+
+function normalizeDisplayCurrency(currency?: string | null) {
+  const normalized = currency?.trim().toUpperCase();
+
+  if (!normalized) {
+    return undefined;
+  }
+
+  if (
+    normalized.includes("RUB") ||
+    normalized.includes("RUR") ||
+    normalized.includes("РУБ") ||
+    normalized.includes("₽") ||
+    normalized.includes("РОССИЙСКИЙ РУБЛЬ")
+  ) {
+    return "RUB";
+  }
+
+  if (normalized.includes("USD") || normalized.includes("$") || normalized.includes("ДОЛЛАР")) {
+    return "USD";
+  }
+
+  if (normalized.includes("EUR") || normalized.includes("€") || normalized.includes("ЕВРО")) {
+    return "EUR";
+  }
+
+  if (normalized.includes("CNY") || normalized.includes("ЮАН")) {
+    return "CNY";
+  }
+
+  const codeMatch = normalized.match(/\b[A-Z]{3}\b/);
+  return codeMatch?.[0];
 }
 
 export function formatDuration(startedAt?: string | null, finishedAt?: string | null) {

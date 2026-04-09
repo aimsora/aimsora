@@ -355,7 +355,7 @@ const nppTimelineItems = computed(() =>
     label: item.label,
     shortLabel: compactMonthLabel(item.label),
     value: item.procurementCount,
-    valueLabel: `${formatNumber(item.procurementCount)} карточек`,
+    valueLabel: formatCountLabel(item.procurementCount, ["карточка", "карточки", "карточек"]),
     note: `Сумма за месяц: ${formatCurrency(item.totalAmount, "RUB")}`
   }))
 );
@@ -440,6 +440,25 @@ function compactMonthLabel(label: string) {
   const year = parts[1]?.slice(-2);
 
   return year ? `${month} ${year}` : month;
+}
+
+function formatCountLabel(value: number, forms: [string, string, string]) {
+  const absValue = Math.abs(value) % 100;
+  const lastDigit = absValue % 10;
+
+  if (absValue > 10 && absValue < 20) {
+    return `${formatNumber(value)} ${forms[2]}`;
+  }
+
+  if (lastDigit === 1) {
+    return `${formatNumber(value)} ${forms[0]}`;
+  }
+
+  if (lastDigit >= 2 && lastDigit <= 4) {
+    return `${formatNumber(value)} ${forms[1]}`;
+  }
+
+  return `${formatNumber(value)} ${forms[2]}`;
 }
 
 function riskBadgeVariant(level?: string | null) {
@@ -812,6 +831,7 @@ onMounted(() => {
         <CardContent>
           <MetricColumnChart
             :items="nppTimelineItems"
+            notes-layout="hidden"
             empty-text="После следующего цикла сбора здесь появится помесячная динамика по атомному контуру."
           />
         </CardContent>

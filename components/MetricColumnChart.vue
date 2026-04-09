@@ -12,9 +12,11 @@ const props = withDefaults(
   defineProps<{
     items: MetricColumnItem[];
     emptyText?: string;
+    notesLayout?: "summary" | "hidden";
   }>(),
   {
-    emptyText: "Недостаточно данных для диаграммы."
+    emptyText: "Недостаточно данных для диаграммы.",
+    notesLayout: "summary"
   }
 );
 
@@ -51,29 +53,37 @@ function accentClass(accent?: MetricColumnItem["accent"]) {
   </div>
 
   <div v-else class="space-y-4">
-    <div class="grid h-52 grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-6">
+    <div class="overflow-x-auto pb-1">
       <div
-        v-for="item in items"
-        :key="`${item.label}-${item.value}`"
-        class="flex min-w-0 flex-col justify-end gap-3"
+        class="grid h-56 gap-3"
+        :style="{
+          gridTemplateColumns: `repeat(${items.length}, minmax(4.5rem, 1fr))`,
+          minWidth: `${Math.max(items.length * 4.75, 28)}rem`
+        }"
       >
-        <div class="flex-1 rounded-2xl border border-dashed border-border/70 bg-muted/15 p-2">
-          <div class="flex h-full items-end">
-            <div
-              class="w-full rounded-xl transition-[height]"
-              :class="accentClass(item.accent)"
-              :style="{ height: heightPercent(item.value) }"
-            />
+        <div
+          v-for="item in items"
+          :key="`${item.label}-${item.value}`"
+          class="flex min-w-0 flex-col justify-end gap-3"
+        >
+          <div class="flex-1 rounded-2xl border border-dashed border-border/70 bg-muted/15 p-2">
+            <div class="flex h-full items-end">
+              <div
+                class="w-full rounded-xl transition-[height]"
+                :class="accentClass(item.accent)"
+                :style="{ height: heightPercent(item.value) }"
+              />
+            </div>
           </div>
-        </div>
-        <div class="space-y-1 text-xs">
-          <p class="truncate font-medium text-foreground">{{ item.shortLabel ?? item.label }}</p>
-          <p class="text-muted-foreground">{{ item.valueLabel ?? formatNumber(item.value) }}</p>
+          <div class="space-y-1 text-xs">
+            <p class="truncate font-medium text-foreground">{{ item.shortLabel ?? item.label }}</p>
+            <p class="text-muted-foreground">{{ item.valueLabel ?? formatNumber(item.value) }}</p>
+          </div>
         </div>
       </div>
     </div>
 
-    <p v-if="items.some((item) => item.note)" class="text-xs text-muted-foreground">
+    <p v-if="props.notesLayout === 'summary' && items.some((item) => item.note)" class="text-xs text-muted-foreground">
       {{
         items
           .map((item) => item.note)

@@ -192,7 +192,13 @@ const nppNicheSummary = computed(() => {
   const totalOrders = items.reduce((sum, item) => sum + item.procurementCount, 0);
   const totalAmount = items.reduce((sum, item) => sum + item.totalAmount, 0);
   const totalStations = new Set(items.flatMap((item) => item.stations)).size;
-  const leadNiche = items[0];
+  const leadNiche = [...items].sort(
+    (left, right) =>
+      right.procurementCount - left.procurementCount ||
+      right.totalAmount - left.totalAmount ||
+      right.stationCount - left.stationCount ||
+      left.niche.localeCompare(right.niche)
+  )[0];
 
   return {
     totalOrders,
@@ -202,7 +208,12 @@ const nppNicheSummary = computed(() => {
   };
 });
 const nppNicheDemandSegments = computed(() => {
-  const items = detail.item.value?.nppNicheOrders ?? [];
+  const items = [...(detail.item.value?.nppNicheOrders ?? [])].sort(
+    (left, right) =>
+      right.procurementCount - left.procurementCount ||
+      right.totalAmount - left.totalAmount ||
+      left.niche.localeCompare(right.niche)
+  );
   const topItems = items.slice(0, 4);
   const otherCount = items.slice(4).reduce((sum, item) => sum + item.procurementCount, 0);
   const segments: Array<{
@@ -242,7 +253,12 @@ const nppNicheCoverageItems = computed(() =>
     }))
 );
 const nppNicheBudgetSegments = computed(() => {
-  const items = detail.item.value?.nppNicheOrders ?? [];
+  const items = [...(detail.item.value?.nppNicheOrders ?? [])].sort(
+    (left, right) =>
+      right.totalAmount - left.totalAmount ||
+      right.procurementCount - left.procurementCount ||
+      left.niche.localeCompare(right.niche)
+  );
   const totalAmount = items.reduce((sum, item) => sum + item.totalAmount, 0);
 
   if (totalAmount <= 0) {
@@ -278,6 +294,104 @@ const nppNicheFreshnessItems = computed(() =>
       accent: "success" as const
     }))
 );
+const supplierIntegritySegments = computed(() => {
+  const items = detail.item.value?.supplierDueDiligence ?? [];
+  const highRisk = items.filter((item) => (item.integrityScore ?? 0) < 45).length;
+  const watch = items.filter((item) => (item.integrityScore ?? 0) >= 45 && (item.integrityScore ?? 0) < 70).length;
+  const stable = items.filter((item) => (item.integrityScore ?? 0) >= 70).length;
+
+  return [
+    {
+      label: "Высокий риск",
+      value: highRisk,
+      valueLabel: `${formatNumber(highRisk)} поставщиков`,
+      accent: "danger" as const
+    },
+    {
+      label: "Нужна проверка",
+      value: watch,
+      valueLabel: `${formatNumber(watch)} поставщиков`,
+      accent: "warning" as const
+    },
+    {
+      label: "Стабильный профиль",
+      value: stable,
+      valueLabel: `${formatNumber(stable)} поставщиков`,
+      accent: "success" as const
+    }
+  ];
+});
+const supplierRiskProfileItems = computed(() =>
+  (detail.item.value?.supplierDueDiligence ?? [])
+    .map((item) => {
+      const pressure =
+        item.activeRnpEntriesCount * 5 +
+        item.activeRiskSignalsCount * 3 +
+        (item.liquidationMark ? 4 : 0) +
+        (item.flags?.length ?? 0);
+
+      return {
+        label: item.supplier,
+        value: Math.max(pressure, 1),
+        valueLabel: `${formatNumber(item.integrityScore)}/100`,
+        note: `${formatNumber(item.activeRiskSignalsCount)} риск-сигналов · ${formatNumber(item.activeRnpEntriesCount)} РНП`,
+        accent:
+          item.activeRnpEntriesCount > 0 || item.liquidationMark
+            ? ("danger" as const)
+            : item.activeRiskSignalsCount > 0
+              ? ("warning" as const)
+              : ("success" as const)
+      };
+    })
+    .sort((left, right) => right.value - left.value || left.label.localeCompare(right.label))
+    .slice(0, 8)
+);
+const supplierRegionItems = computed(() => {
+  const counters = new Map<string, { suppliers: number; riskySuppliers: number }>();
+
+  for (const item of detail.item.value?.supplierDueDiligence ?? []) {
+    const region = item.region?.trim() || "Регион не указан";
+    const current = counters.get(region) ?? { suppliers: 0, riskySuppliers: 0 };
+    current.suppliers += 1;
+
+    if ((item.integrityScore ?? 0) < 70 || item.activeRiskSignalsCount > 0 || item.activeRnpEntriesCount > 0) {
+      current.riskySuppliers += 1;
+    }
+
+    counters.set(region, current);
+  }
+
+  return Array.from(counters.entries())
+    .sort((left, right) => right[1].suppliers - left[1].suppliers || left[0].localeCompare(right[0]))
+    .slice(0, 8)
+    .map(([region, stats]) => ({
+      label: region,
+      value: stats.suppliers,
+      valueLabel: `${formatNumber(stats.suppliers)} контрагентов`,
+      note: `Под наблюдением: ${formatNumber(stats.riskySuppliers)}`,
+      accent: stats.riskySuppliers > 0 ? ("warning" as const) : ("primary" as const)
+    }));
+});
+const supplierFlagItems = computed(() => {
+  const counters = new Map<string, number>();
+
+  for (const item of detail.item.value?.supplierDueDiligence ?? []) {
+    for (const flag of item.flags ?? []) {
+      counters.set(flag, (counters.get(flag) ?? 0) + 1);
+    }
+  }
+
+  return Array.from(counters.entries())
+    .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
+    .slice(0, 8)
+    .map(([flag, count]) => ({
+      label: flag,
+      value: count,
+      valueLabel: `${formatNumber(count)} поставщиков`,
+      note: "Частота появления флага в текущем отчёте",
+      accent: "muted" as const
+    }));
+});
 const hasNppStationOrders = computed(() => filteredNppStationOrders.value.length > 0);
 const hasMarketConcentration = computed(
   () =>
@@ -879,6 +993,70 @@ watchEffect(() => {
                 </div>
               </div>
             </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div v-if="hasSupplierDueDiligence" class="grid gap-4 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+        <Card>
+          <CardHeader>
+            <CardTitle>Профиль добросовестности</CardTitle>
+            <CardDescription>
+              Сводка по качеству контрагентского профиля: где у поставщиков стабильный контур, а где уже нужна ручная проверка.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <MetricStackBar
+              :segments="supplierIntegritySegments"
+              empty-text="Когда появятся карточки контрагентов, здесь отобразится профиль добросовестности."
+            />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Карта риск-напряжения</CardTitle>
+            <CardDescription>
+              Приоритизация поставщиков по совокупному давлению: риск-сигналы, РНП, признаки ликвидации и накопленные флаги.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <MetricBarList
+              :items="supplierRiskProfileItems"
+              empty-text="После накопления сигналов здесь появится карта риск-напряжения по поставщикам."
+            />
+          </CardContent>
+        </Card>
+      </div>
+
+      <div v-if="hasSupplierDueDiligence" class="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        <Card>
+          <CardHeader>
+            <CardTitle>География контрагентов</CardTitle>
+            <CardDescription>
+              Показывает, в каких регионах сейчас сосредоточен поставщикский контур и где копится больше контрагентов под наблюдением.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <MetricBarList
+              :items="supplierRegionItems"
+              empty-text="После загрузки регионального профиля здесь появится география контрагентов."
+            />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Повторяющиеся флаги проверки</CardTitle>
+            <CardDescription>
+              Частота риск-флагов помогает быстро понять, какие проблемы чаще всего повторяются в текущем контрагентском пуле.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <MetricBarList
+              :items="supplierFlagItems"
+              empty-text="Когда у поставщиков появятся диагностические флаги, здесь отобразится их распределение."
+            />
           </CardContent>
         </Card>
       </div>
