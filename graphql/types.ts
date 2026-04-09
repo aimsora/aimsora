@@ -376,6 +376,31 @@ export type ReportNppStationOrderItem = {
   orders: ReportNppStationOrderEntry[];
 };
 
+export type ReportNppNicheOrderEntry = {
+  procurementId: string;
+  externalId: string;
+  title: string;
+  station: string;
+  customer?: string | null;
+  supplier?: string | null;
+  source: string;
+  amount?: number | null;
+  currency?: string | null;
+  status: string;
+  publishedAt?: string | null;
+  sourceUrl?: string | null;
+};
+
+export type ReportNppNicheItem = {
+  niche: string;
+  procurementCount: number;
+  stationCount: number;
+  totalAmount: number;
+  lastPublishedAt?: string | null;
+  stations: string[];
+  orders: ReportNppNicheOrderEntry[];
+};
+
 export type ReportDetail = {
   id: string;
   name: string;
@@ -396,6 +421,7 @@ export type ReportDetail = {
   supplierExposure: AnalyticsSupplierExposureItem[];
   supplierDueDiligence: ReportSupplierDueDiligenceItem[];
   nppStationOrders: ReportNppStationOrderItem[];
+  nppNicheOrders: ReportNppNicheItem[];
   recentSourceRuns: SourceRun[];
   recentProcurements: Procurement[];
 };

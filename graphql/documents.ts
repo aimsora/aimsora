@@ -564,6 +564,28 @@ export const REPORT_QUERY = gql`
           sourceUrl
         }
       }
+      nppNicheOrders {
+        niche
+        procurementCount
+        stationCount
+        totalAmount
+        lastPublishedAt
+        stations
+        orders {
+          procurementId
+          externalId
+          title
+          station
+          customer
+          supplier
+          source
+          amount
+          currency
+          status
+          publishedAt
+          sourceUrl
+        }
+      }
       recentSourceRuns {
         id
         runKey
@@ -645,9 +667,31 @@ export const UPDATE_USER_ROLE_MUTATION = gql`
   }
 `;
 
+export const UPDATE_USER_MUTATION = gql`
+  mutation UpdateUser($input: UpdateUserInput!) {
+    updateUser(input: $input) {
+      id
+      email
+      fullName
+      avatarUrl
+      role
+      isActive
+      lastLoginAt
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
 export const DEACTIVATE_USER_MUTATION = gql`
   mutation DeactivateUser($userId: String!) {
     deactivateUser(userId: $userId)
+  }
+`;
+
+export const DELETE_USER_MUTATION = gql`
+  mutation DeleteUser($userId: String!) {
+    deleteUser(userId: $userId)
   }
 `;
 

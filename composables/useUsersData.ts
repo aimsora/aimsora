@@ -1,26 +1,34 @@
 import {
   CREATE_USER_MUTATION,
-  RESET_USER_PASSWORD_MUTATION,
+  DELETE_USER_MUTATION,
   SET_USER_ACTIVE_MUTATION,
-  UPDATE_USER_ROLE_MUTATION,
+  UPDATE_USER_MUTATION,
   USERS_QUERY
 } from "~/graphql/documents";
 import type { AppUser, UserRole } from "~/graphql/types";
+
+type EditableUserForm = {
+  email: string;
+  fullName: string;
+  avatarUrl: string;
+  role: UserRole;
+  newPassword: string;
+};
 
 export function useUsersData() {
   const apollo = useApollo();
   const toast = useToast();
   const { loading, error, begin, fail, finish } = useRequestState(true);
   const users = ref<AppUser[]>([]);
-  const pendingRoles = reactive<Record<string, UserRole>>({});
+  const editForms = reactive<Record<string, EditableUserForm>>({});
   const createDialogOpen = ref(false);
   const userToDeactivate = ref<AppUser | null>(null);
-  const userToResetPassword = ref<AppUser | null>(null);
+  const userToDelete = ref<AppUser | null>(null);
   const createLoading = ref(false);
   const updateLoadingId = ref("");
   const deactivateLoadingId = ref("");
+  const deleteLoadingId = ref("");
   const activationLoadingId = ref("");
-  const resetPasswordLoadingId = ref("");
   const createForm = reactive<{
     email: string;
     fullName: string;
@@ -31,11 +39,6 @@ export function useUsersData() {
     fullName: "",
     password: "",
     role: "USER"
-  });
-  const resetPasswordForm = reactive<{
-    newPassword: string;
-  }>({
-    newPassword: ""
   });
 
   const createErrors = computed(() => ({
@@ -55,21 +58,84 @@ export function useUsersData() {
       !createErrors.value.email &&
       !createErrors.value.password
   );
-  const resetPasswordError = computed(() =>
-    resetPasswordForm.newPassword.length >= 5
-      ? ""
-      : "Пароль должен содержать не менее пяти символов."
-  );
-  const resetPasswordValid = computed(() => !resetPasswordError.value);
 
-  function syncPendingRoles(nextUsers: AppUser[]) {
-    for (const userId of Object.keys(pendingRoles)) {
-      delete pendingRoles[userId];
+  function buildEditForm(user: AppUser): EditableUserForm {
+    return {
+      email: user.email,
+      fullName: user.fullName,
+      avatarUrl: user.avatarUrl ?? "",
+      role: user.role,
+      newPassword: ""
+    };
+  }
+
+  function syncEditForms(nextUsers: AppUser[]) {
+    for (const userId of Object.keys(editForms)) {
+      delete editForms[userId];
     }
 
     for (const user of nextUsers) {
-      pendingRoles[user.id] = user.role;
+      editForms[user.id] = buildEditForm(user);
     }
+  }
+
+  function getEditErrors(userId: string) {
+    const form = editForms[userId];
+
+    if (!form) {
+      return {
+        fullName: "",
+        email: "",
+        newPassword: ""
+      };
+    }
+
+    return {
+      fullName: form.fullName.trim().length >= 3 ? "" : "Укажите имя не короче трёх символов.",
+      email:
+        /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())
+          ? ""
+          : "Введите корректную электронную почту.",
+      newPassword:
+        form.newPassword.trim().length === 0 || form.newPassword.length >= 5
+          ? ""
+          : "Пароль должен содержать не менее пяти символов."
+    };
+  }
+
+  function isEditFormValid(userId: string) {
+    const errors = getEditErrors(userId);
+    return !errors.fullName && !errors.email && !errors.newPassword;
+  }
+
+  function resetCreateForm() {
+    createForm.email = "";
+    createForm.fullName = "";
+    createForm.password = "";
+    createForm.role = "USER";
+  }
+
+  function resetEditForm(userId: string) {
+    const user = users.value.find((item) => item.id === userId);
+
+    if (!user) {
+      return;
+    }
+
+    editForms[userId] = buildEditForm(user);
+  }
+
+  function upsertUser(nextUser: AppUser) {
+    users.value = users.value.map((item) => (item.id === nextUser.id ? nextUser : item));
+    if (!users.value.some((item) => item.id === nextUser.id)) {
+      users.value = [nextUser, ...users.value];
+    }
+    syncEditForms(users.value);
+  }
+
+  function removeUser(userId: string) {
+    users.value = users.value.filter((item) => item.id !== userId);
+    syncEditForms(users.value);
   }
 
   async function load() {
@@ -82,31 +148,12 @@ export function useUsersData() {
       });
       const data = requireRequestData(result.data, "Не удалось загрузить пользователей");
       users.value = data.users;
-      syncPendingRoles(data.users);
+      syncEditForms(data.users);
     } catch (caught) {
       fail(caught, "Не удалось загрузить пользователей");
     } finally {
       finish();
     }
-  }
-
-  function resetCreateForm() {
-    createForm.email = "";
-    createForm.fullName = "";
-    createForm.password = "";
-    createForm.role = "USER";
-  }
-
-  function upsertUser(nextUser: AppUser) {
-    users.value = users.value.map((item) => (item.id === nextUser.id ? nextUser : item));
-    if (!users.value.some((item) => item.id === nextUser.id)) {
-      users.value = [nextUser, ...users.value];
-    }
-    syncPendingRoles(users.value);
-  }
-
-  function resetResetPasswordForm() {
-    resetPasswordForm.newPassword = "";
   }
 
   async function createUser() {
@@ -136,7 +183,7 @@ export function useUsersData() {
       );
 
       users.value = [createdUser, ...users.value.filter((user) => user.id !== createdUser.id)];
-      syncPendingRoles(users.value);
+      syncEditForms(users.value);
       resetCreateForm();
       createDialogOpen.value = false;
       toast.success("Пользователь создан", "Новая учётная запись добавлена в систему.");
@@ -148,30 +195,80 @@ export function useUsersData() {
     }
   }
 
-  async function updateRole(user: AppUser) {
+  async function setEditAvatarFromFile(userId: string, file: File) {
+    if (!file.type.startsWith("image/")) {
+      toast.warning("Нужен файл изображения", "Выберите PNG, JPG, WEBP или другой image-файл.");
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.warning("Файл слишком большой", "Максимальный размер аватара — 2 МБ.");
+      return;
+    }
+
+    const avatarDataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+
+      reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "");
+      reader.onerror = () => reject(new Error("Не удалось прочитать файл"));
+      reader.readAsDataURL(file);
+    });
+
+    if (editForms[userId]) {
+      editForms[userId].avatarUrl = avatarDataUrl;
+    }
+  }
+
+  function clearEditAvatar(userId: string) {
+    if (editForms[userId]) {
+      editForms[userId].avatarUrl = "";
+    }
+  }
+
+  async function updateUser(user: AppUser) {
+    const form = editForms[user.id];
+
+    if (!form) {
+      return null;
+    }
+
+    if (!isEditFormValid(user.id)) {
+      toast.warning("Проверьте форму", "Исправьте имя, email и пароль перед сохранением.");
+      return null;
+    }
+
     updateLoadingId.value = user.id;
 
     try {
-      const result = await apollo.mutate<{ updateUserRole: AppUser }>({
-        mutation: UPDATE_USER_ROLE_MUTATION,
+      const result = await apollo.mutate<{ updateUser: AppUser }>({
+        mutation: UPDATE_USER_MUTATION,
         variables: {
           input: {
             userId: user.id,
-            role: pendingRoles[user.id]
+            email: form.email.trim(),
+            fullName: form.fullName.trim(),
+            avatarUrl: form.avatarUrl.trim() ? form.avatarUrl.trim() : null,
+            role: form.role,
+            newPassword: form.newPassword.trim() ? form.newPassword : undefined
           }
         }
       });
-      const data = requireRequestData(result.data, "Не удалось обновить роль");
+      const data = requireRequestData(result.data, "Не удалось обновить пользователя");
       const updatedUser = requireRequestData(
-        data.updateUserRole,
+        data.updateUser,
         "Сервер не вернул обновлённого пользователя"
       );
 
       upsertUser(updatedUser);
-      toast.success("Роль обновлена", `Для ${user.email} сохранена новая роль.`);
+      if (editForms[user.id]) {
+        editForms[user.id].newPassword = "";
+      }
+      toast.success("Пользователь обновлён", `Карточка ${updatedUser.email} сохранена.`);
+      return updatedUser;
     } catch (caught) {
-      const message = caught instanceof Error ? caught.message : "Не удалось обновить роль";
-      toast.error("Ошибка обновления роли", message);
+      const message = caught instanceof Error ? caught.message : "Не удалось обновить пользователя";
+      toast.error("Ошибка обновления", message);
+      return null;
     } finally {
       updateLoadingId.value = "";
     }
@@ -185,6 +282,33 @@ export function useUsersData() {
       userToDeactivate.value = null;
     } finally {
       deactivateLoadingId.value = "";
+    }
+  }
+
+  async function deleteUser(user: AppUser) {
+    deleteLoadingId.value = user.id;
+
+    try {
+      const result = await apollo.mutate<{ deleteUser: boolean }>({
+        mutation: DELETE_USER_MUTATION,
+        variables: {
+          userId: user.id
+        }
+      });
+      const data = requireRequestData(result.data, "Не удалось удалить пользователя");
+
+      if (!data.deleteUser) {
+        throw new Error("Сервер не подтвердил удаление пользователя");
+      }
+
+      removeUser(user.id);
+      userToDelete.value = null;
+      toast.success("Пользователь удалён", `${user.email} больше не отображается в системе.`);
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : "Не удалось удалить пользователя";
+      toast.error("Ошибка удаления", message);
+    } finally {
+      deleteLoadingId.value = "";
     }
   }
 
@@ -223,76 +347,32 @@ export function useUsersData() {
     }
   }
 
-  async function resetUserPassword() {
-    const targetUser = userToResetPassword.value;
-
-    if (!targetUser) {
-      return;
-    }
-
-    if (!resetPasswordValid.value) {
-      toast.warning("Проверьте пароль", "Новый пароль должен содержать не менее пяти символов.");
-      return;
-    }
-
-    resetPasswordLoadingId.value = targetUser.id;
-
-    try {
-      const result = await apollo.mutate<{ resetUserPassword: AppUser }>({
-        mutation: RESET_USER_PASSWORD_MUTATION,
-        variables: {
-          input: {
-            userId: targetUser.id,
-            newPassword: resetPasswordForm.newPassword
-          }
-        }
-      });
-      const data = requireRequestData(result.data, "Не удалось сбросить пароль");
-      const updatedUser = requireRequestData(
-        data.resetUserPassword,
-        "Сервер не вернул пользователя после сброса пароля"
-      );
-
-      upsertUser(updatedUser);
-      userToResetPassword.value = null;
-      resetResetPasswordForm();
-      toast.success(
-        "Пароль обновлён",
-        `Для ${targetUser.email} назначен новый пароль, старые сессии завершены.`
-      );
-    } catch (caught) {
-      const message = caught instanceof Error ? caught.message : "Не удалось сбросить пароль";
-      toast.error("Ошибка сброса пароля", message);
-    } finally {
-      resetPasswordLoadingId.value = "";
-    }
-  }
-
   return {
     loading,
     error,
     users,
-    pendingRoles,
+    editForms,
     createDialogOpen,
     userToDeactivate,
-    userToResetPassword,
+    userToDelete,
     createLoading,
     updateLoadingId,
     deactivateLoadingId,
+    deleteLoadingId,
     activationLoadingId,
-    resetPasswordLoadingId,
     createForm,
     createErrors,
     createFormValid,
-    resetPasswordForm,
-    resetPasswordError,
-    resetPasswordValid,
     load,
     createUser,
-    updateRole,
+    updateUser,
+    getEditErrors,
+    isEditFormValid,
+    resetEditForm,
+    setEditAvatarFromFile,
+    clearEditAvatar,
     deactivate,
-    setUserActive,
-    resetUserPassword,
-    resetResetPasswordForm
+    deleteUser,
+    setUserActive
   };
 }

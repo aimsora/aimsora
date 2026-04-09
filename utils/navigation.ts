@@ -1,10 +1,14 @@
 import type { UserRole } from "~/graphql/types";
+import type { AnalyticsSectionId } from "~/utils/analytics-sections";
+import type { ReportSectionId } from "~/utils/report-sections";
 
 export type AppNavigationItem = {
   title: string;
   href: string;
   description: string;
   roles?: UserRole[];
+  analyticsSection?: AnalyticsSectionId;
+  reportSection?: ReportSectionId;
 };
 
 export type AppNavigationGroup = {
@@ -33,10 +37,31 @@ export const APP_NAVIGATION_GROUPS: AppNavigationGroup[] = [
         roles: ["ANALYST", "ADMIN"]
       },
       {
-        title: "Аналитика",
-        href: "/analytics",
-        description: "Риски, сроки и качество потока",
-        roles: ["ANALYST", "ADMIN"]
+        title: "Обзор",
+        href: "/analytics/overview",
+        description: "Главный экран по срокам, объёмам и закупкам под вниманием",
+        roles: ["ANALYST", "ADMIN"],
+        analyticsSection: "overview"
+      },
+      {
+        title: "Поставщики",
+        href: "/analytics/suppliers",
+        description: "Концентрация поставщиков, источники риска и качество публикации",
+        roles: ["ANALYST", "ADMIN"],
+        analyticsSection: "suppliers"
+      },
+      {
+        title: "АЭС",
+        href: "/analytics/npp",
+        description: "Станции, заказчики, источники и динамика атомного контура",
+        roles: ["ANALYST", "ADMIN"],
+        analyticsSection: "npp"
+      },
+      {
+        title: "Источники",
+        href: "/sources",
+        description: "Состояние подключённых источников",
+        roles: ["ANALYST", "DEVELOPER", "ADMIN"]
       }
     ]
   },
@@ -44,16 +69,17 @@ export const APP_NAVIGATION_GROUPS: AppNavigationGroup[] = [
     title: "Парсеры",
     items: [
       {
-        title: "Источники",
-        href: "/sources",
-        description: "Состояние подключённых источников",
-        roles: ["ANALYST", "DEVELOPER", "ADMIN"]
-      },
-      {
         title: "Операции парсеров",
         href: "/jobs",
         description: "Ручной запуск, журнал прогонов и инциденты сборщиков",
         roles: ["DEVELOPER", "ADMIN"]
+      },
+      {
+        title: "Парсеры",
+        href: "/reports/parsers",
+        description: "Технические отчёты по стабильности парсеров",
+        roles: ["DEVELOPER", "ADMIN"],
+        reportSection: "parsers"
       }
     ]
   },
@@ -61,10 +87,25 @@ export const APP_NAVIGATION_GROUPS: AppNavigationGroup[] = [
     title: "Отчёты",
     items: [
       {
-        title: "Отчёты",
-        href: "/reports",
-        description: "Ролевой контур аналитических и инженерных отчётов",
-        roles: ["ANALYST", "DEVELOPER", "ADMIN"]
+        title: "Поставщики",
+        href: "/reports/suppliers",
+        description: "Добросовестность и концентрация поставщиков",
+        roles: ["ANALYST", "ADMIN"],
+        reportSection: "suppliers"
+      },
+      {
+        title: "Ниши",
+        href: "/reports/niches",
+        description: "Ниши закупок атомных станций",
+        roles: ["ANALYST", "ADMIN"],
+        reportSection: "niches"
+      },
+      {
+        title: "АЭС",
+        href: "/reports/aes",
+        description: "Закупочная активность по атомным станциям",
+        roles: ["ANALYST", "ADMIN"],
+        reportSection: "npp"
       }
     ]
   },

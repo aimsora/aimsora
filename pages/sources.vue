@@ -130,50 +130,5 @@ onMounted(() => {
         </CardContent>
       </Card>
     </div>
-
-    <Card>
-      <CardHeader>
-        <CardTitle>Последние запуски по источникам</CardTitle>
-        <CardDescription>Оперативный срез по публикациям, ошибкам и времени старта.</CardDescription>
-      </CardHeader>
-      <CardContent v-if="sourceRows.length === 0">
-        <EmptyState
-          title="Источники не найдены"
-          description="После подключения источников здесь появится таблица со статусами."
-        />
-      </CardContent>
-      <CardContent v-else class="px-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Источник</TableHead>
-              <TableHead>Последний запуск</TableHead>
-              <TableHead>Опубликовано</TableHead>
-              <TableHead>Ошибки</TableHead>
-              <TableHead>Время</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="item in sourceRows" :key="item.id">
-              <TableCell>
-                <div class="space-y-1">
-                  <p class="font-medium">{{ item.name }}</p>
-                  <p class="text-sm text-muted-foreground">{{ item.code }}</p>
-                </div>
-              </TableCell>
-              <TableCell>
-                <Badge v-if="item.lastRun" :variant="badgeVariant(item.lastRun.status)">
-                  {{ formatEnumLabel(item.lastRun.status) }}
-                </Badge>
-                <span v-else class="text-sm text-muted-foreground">Запусков пока не было</span>
-              </TableCell>
-              <TableCell>{{ formatNumber(item.lastRun?.itemsPublished) }}</TableCell>
-              <TableCell>{{ formatNumber(item.lastRun?.itemsFailed) }}</TableCell>
-              <TableCell>{{ item.lastRun ? formatDateTime(item.lastRun.startedAt) : "Нет данных" }}</TableCell>
-            </TableRow>
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
   </template>
 </template>

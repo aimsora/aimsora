@@ -10,7 +10,9 @@ import {
   UserCog
 } from "lucide-vue-next";
 import type { Component } from "vue";
-import { APP_NAVIGATION_GROUPS } from "~/utils/navigation";
+import { APP_NAVIGATION_GROUPS, type AppNavigationItem } from "~/utils/navigation";
+import type { AnalyticsSectionId } from "~/utils/analytics-sections";
+import { resolveReportSectionFromRoute } from "~/utils/report-sections";
 import brandLogo from "~/assets/images/nppweb.png";
 
 const route = useRoute();
@@ -18,11 +20,16 @@ const auth = useAuthSession();
 const sidebar = useSidebar();
 
 const icons: Record<string, Component> = {
-  "/analytics": Activity,
+  "/analytics/overview": Activity,
+  "/analytics/suppliers": Activity,
+  "/analytics/npp": Activity,
   "/dashboard": LayoutDashboard,
   "/jobs": Radar,
   "/procurements": FileSearch,
-  "/reports": FileBarChart2,
+  "/reports/suppliers": FileBarChart2,
+  "/reports/niches": FileBarChart2,
+  "/reports/aes": FileBarChart2,
+  "/reports/parsers": FileBarChart2,
   "/sources": BarChart3,
   "/users": UserCog
 };
@@ -38,8 +45,39 @@ const navigationGroups = computed(() =>
     .filter((group) => group.items.length > 0)
 );
 
-function isActive(href: string) {
-  return route.path === href || (href !== "/dashboard" && route.path.startsWith(`${href}/`));
+const activeReportSection = computed(() =>
+  resolveReportSectionFromRoute(
+    route.path,
+    typeof route.query.section === "string" ? route.query.section : undefined
+  )
+);
+
+const activeAnalyticsSection = computed<AnalyticsSectionId | null>(() => {
+  if (route.path === "/analytics" || route.path.startsWith("/analytics/overview")) {
+    return "overview";
+  }
+
+  if (route.path.startsWith("/analytics/suppliers")) {
+    return "suppliers";
+  }
+
+  if (route.path.startsWith("/analytics/npp")) {
+    return "npp";
+  }
+
+  return null;
+});
+
+function isActive(item: AppNavigationItem) {
+  if (item.analyticsSection) {
+    return activeAnalyticsSection.value === item.analyticsSection;
+  }
+
+  if (item.reportSection) {
+    return activeReportSection.value === item.reportSection;
+  }
+
+  return route.path === item.href || (item.href !== "/dashboard" && route.path.startsWith(`${item.href}/`));
 }
 </script>
 
@@ -73,7 +111,7 @@ function isActive(href: string) {
         <SidebarGroupContent>
           <SidebarMenu>
             <SidebarMenuItem v-for="item in group.items" :key="item.href">
-              <SidebarMenuButton as-child :is-active="isActive(item.href)">
+              <SidebarMenuButton as-child :is-active="isActive(item)">
                 <NuxtLink :to="item.href" class="group">
                   <component :is="icons[item.href] ?? PlaySquare" class="h-4 w-4 shrink-0" />
                   <div

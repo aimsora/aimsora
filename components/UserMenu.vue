@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ChevronsUpDown, LogOut, UserRound } from "lucide-vue-next";
+import { BookOpenText, ChevronsUpDown, LogOut, UserRound } from "lucide-vue-next";
 
 const auth = useAuthSession();
 const route = useRoute();
@@ -13,6 +13,7 @@ const props = withDefaults(
 );
 
 const profileHref = "/profile";
+const documentationHref = "https://nppweb.github.io/.github/";
 const menuRef = ref<HTMLElement | null>(null);
 const isOpen = ref(false);
 
@@ -114,6 +115,17 @@ async function logout() {
         <UserRound class="mr-2 h-4 w-4" />
         Профиль
       </NuxtLink>
+      <a
+        :href="documentationHref"
+        target="_blank"
+        rel="noreferrer"
+        class="flex w-full items-center rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent/60 focus-visible:bg-accent/60 focus-visible:outline-none"
+        role="menuitem"
+        @click="closeMenu"
+      >
+        <BookOpenText class="mr-2 h-4 w-4" />
+        Документация
+      </a>
       <button
         type="button"
         class="flex w-full items-center rounded-lg px-3 py-2 text-sm text-destructive transition-colors hover:bg-accent/60 focus-visible:bg-accent/60 focus-visible:outline-none"

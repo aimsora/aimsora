@@ -1,4 +1,13 @@
 <script setup lang="ts">
+import {
+  REPORT_SECTION_META,
+  REPORT_TYPE_DESCRIPTIONS,
+  REPORT_TYPE_LABELS,
+  getReportListRouteByType,
+  getReportSectionPath,
+  type ReportSectionId
+} from "~/utils/report-sections";
+
 definePageMeta({
   title: "Карточка отчёта",
   description: "Детальная аналитика по выбранному отчёту",
@@ -8,39 +17,22 @@ definePageMeta({
 const route = useRoute();
 const detail = useReportDetail();
 
-type ReportDetailSectionId = "summary" | "portfolio" | "suppliers" | "stations" | "sources" | "operations";
-type ReportSectionId = "analytics" | "suppliers" | "npp" | "parsers";
-
-const reportTypeLabels: Record<string, string> = {
-  "daily-overview": "Аналитическая сводка по закупкам",
-  "supplier-risk": "Риски и концентрация поставщиков",
-  "supplier-due-diligence": "Проверка благонадёжности поставщиков",
-  "npp-station-orders": "Закупочная активность АЭС",
-  "pipeline-incident": "Стабильность парсеров и публикации"
-};
-
-const reportTypeDescriptions: Record<string, string> = {
-  "daily-overview": "Сводный отчет по закупкам, объему данных, дедлайнам и активности источников.",
-  "supplier-risk": "Отчет по концентрации, риск-сигналам и закупкам, требующим приоритетного внимания.",
-  "supplier-due-diligence": "Проверка поставщиков по РНП, Федресурсу, ФНС и собственной закупочной активности.",
-  "npp-station-orders": "Подробный срез по атомным станциям: какие закупки публиковались и в каком источнике они были найдены.",
-  "pipeline-incident": "Срез по качеству запусков, публикации и сбоям в контуре сбора."
-};
+type ReportDetailSectionId =
+  | "summary"
+  | "portfolio"
+  | "suppliers"
+  | "niches"
+  | "stations"
+  | "sources"
+  | "operations";
 
 const reportTypeSections: Record<string, ReportDetailSectionId[]> = {
   "daily-overview": ["summary", "portfolio", "sources"],
   "supplier-risk": ["summary", "portfolio", "suppliers", "sources"],
   "supplier-due-diligence": ["summary", "suppliers"],
+  "npp-market-niches": ["summary", "niches", "sources"],
   "npp-station-orders": ["summary", "stations", "sources"],
   "pipeline-incident": ["summary", "sources", "operations"]
-};
-
-const reportTypeReportSection: Record<string, ReportSectionId> = {
-  "daily-overview": "analytics",
-  "supplier-risk": "suppliers",
-  "supplier-due-diligence": "suppliers",
-  "npp-station-orders": "npp",
-  "pipeline-incident": "parsers"
 };
 
 const title = computed(() => detail.item.value?.name || "Карточка отчёта");
@@ -49,12 +41,13 @@ const description = computed(() => {
     return detail.item.value.description;
   }
 
-  return reportTypeDescriptions[detail.item.value?.reportType ?? ""] || "Детальный аналитический отчёт.";
+  return REPORT_TYPE_DESCRIPTIONS[detail.item.value?.reportType ?? ""] || "Детальный аналитический отчёт.";
 });
 
 const metricCards = computed(() => detail.item.value?.metrics ?? []);
 const scoreCards = computed(() => detail.item.value?.scores ?? []);
 const hasSupplierDueDiligence = computed(() => (detail.item.value?.supplierDueDiligence?.length ?? 0) > 0);
+const hasNppNicheOrders = computed(() => (detail.item.value?.nppNicheOrders?.length ?? 0) > 0);
 const hasNppStationOrders = computed(() => (detail.item.value?.nppStationOrders?.length ?? 0) > 0);
 const hasMarketConcentration = computed(
   () =>
@@ -87,6 +80,9 @@ const showPortfolioSection = computed(
 const showSuppliersSection = computed(
   () => enabledSections.value.includes("suppliers") && (hasMarketConcentration.value || hasSupplierDueDiligence.value)
 );
+const showNichesSection = computed(
+  () => enabledSections.value.includes("niches") && hasNppNicheOrders.value
+);
 const showStationsSection = computed(
   () => enabledSections.value.includes("stations") && hasNppStationOrders.value
 );
@@ -117,6 +113,12 @@ const reportSections = computed(() => {
       visible: showSuppliersSection.value
     },
     {
+      id: "niches",
+      label: "Ниши",
+      description: "Группировка закупок АЭС по типовым нишам и тематическим направлениям.",
+      visible: showNichesSection.value
+    },
+    {
       id: "stations",
       label: "АЭС",
       description: "Закупочная активность по станциям и список заказов.",
@@ -145,22 +147,22 @@ const statusMixMax = computed(() =>
   Math.max(...(detail.item.value?.statusMix?.map((item) => item.count) ?? [1]), 1)
 );
 const backToReportsLink = computed(() => {
+  const requestedSection = typeof route.query.section === "string" ? route.query.section : null;
   const reportType = detail.item.value?.reportType;
 
-  if (!reportType) {
-    return { path: "/reports" };
+  if (
+    requestedSection &&
+    requestedSection in REPORT_SECTION_META &&
+    requestedSection !== "analytics"
+  ) {
+    return getReportSectionPath(requestedSection as ReportSectionId);
   }
 
-  return {
-    path: "/reports",
-    query: {
-      section: reportTypeReportSection[reportType] ?? "analytics"
-    }
-  };
+  return getReportListRouteByType(reportType);
 });
 
 function reportTypeLabel(reportType?: string | null) {
-  return reportTypeLabels[reportType ?? ""] ?? "Оперативный отчёт";
+  return REPORT_TYPE_LABELS[reportType ?? ""] ?? "Оперативный отчёт";
 }
 
 function severityBadgeVariant(severity?: string | null) {
@@ -795,6 +797,95 @@ watchEffect(() => {
                         <p class="text-sm text-muted-foreground">{{ order.externalId }}</p>
                       </div>
                     </TableCell>
+                    <TableCell>{{ order.customer || "Не указан" }}</TableCell>
+                    <TableCell>{{ order.source }}</TableCell>
+                    <TableCell>{{ formatCurrency(order.amount, order.currency) }}</TableCell>
+                    <TableCell>{{ formatDateTime(order.publishedAt) }}</TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </section>
+
+    <section
+      v-if="showNichesSection"
+      id="niches"
+      class="space-y-4 scroll-mt-24"
+    >
+      <Card class="border-border/70 bg-gradient-to-br from-cyan-500/10 via-background to-background">
+        <CardHeader class="space-y-1">
+          <div class="flex flex-wrap items-center gap-2">
+            <Badge variant="secondary">Ниши</Badge>
+          </div>
+          <CardTitle>Ниши закупок АЭС</CardTitle>
+          <CardDescription>
+            Закупки атомных станций разложены по нишам, чтобы было видно, где концентрируется спрос.
+          </CardDescription>
+        </CardHeader>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Что закупают по нишам</CardTitle>
+          <CardDescription>
+            По каждой нише видно число закупок, географию по АЭС и конкретные позиции внутри категории.
+          </CardDescription>
+        </CardHeader>
+        <CardContent class="space-y-6">
+          <div
+            v-for="niche in detail.item.value.nppNicheOrders"
+            :key="niche.niche"
+            class="rounded-2xl border bg-muted/10 p-4"
+          >
+            <div class="flex flex-wrap items-start justify-between gap-3">
+              <div class="space-y-2">
+                <div class="flex flex-wrap items-center gap-2">
+                  <p class="text-base font-semibold">{{ niche.niche }}</p>
+                  <Badge variant="outline">{{ formatNumber(niche.procurementCount) }} закупок</Badge>
+                  <Badge variant="secondary">{{ formatNumber(niche.stationCount) }} АЭС</Badge>
+                </div>
+                <p class="text-sm text-muted-foreground">
+                  {{ formatCurrency(niche.totalAmount, "RUB") }} ·
+                  Последняя активность: {{ formatDateTime(niche.lastPublishedAt) }}
+                </p>
+                <div class="flex flex-wrap gap-2">
+                  <Badge
+                    v-for="station in niche.stations"
+                    :key="`${niche.niche}-${station}`"
+                    variant="outline"
+                  >
+                    {{ station }}
+                  </Badge>
+                </div>
+              </div>
+            </div>
+
+            <div class="mt-4 overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Закупка</TableHead>
+                    <TableHead>АЭС</TableHead>
+                    <TableHead>Заказчик</TableHead>
+                    <TableHead>Источник</TableHead>
+                    <TableHead>Сумма</TableHead>
+                    <TableHead>Когда</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow v-for="order in niche.orders" :key="order.procurementId">
+                    <TableCell>
+                      <div class="space-y-1">
+                        <NuxtLink :to="`/procurements/${order.procurementId}`" class="font-medium text-primary hover:underline">
+                          {{ order.title }}
+                        </NuxtLink>
+                        <p class="text-sm text-muted-foreground">{{ order.externalId }}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell>{{ order.station }}</TableCell>
                     <TableCell>{{ order.customer || "Не указан" }}</TableCell>
                     <TableCell>{{ order.source }}</TableCell>
                     <TableCell>{{ formatCurrency(order.amount, order.currency) }}</TableCell>

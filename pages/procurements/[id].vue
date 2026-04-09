@@ -35,9 +35,6 @@ onMounted(() => {
       <Badge v-if="detail.item.value" :variant="badgeVariant(detail.item.value.status)">
         {{ formatEnumLabel(detail.item.value.status) }}
       </Badge>
-      <Button as-child variant="secondary">
-        <NuxtLink to="/procurements">К списку</NuxtLink>
-      </Button>
     </template>
   </PageHeader>
 
@@ -57,6 +54,15 @@ onMounted(() => {
   />
 
   <template v-else-if="detail.item.value">
+    <div class="flex flex-wrap items-center gap-3 rounded-2xl border bg-muted/10 p-4">
+      <Button as-child variant="secondary">
+        <NuxtLink to="/procurements">К списку закупок</NuxtLink>
+      </Button>
+      <p class="text-sm text-muted-foreground">
+        Возврат в общий реестр со всеми фильтрами и поиском.
+      </p>
+    </div>
+
     <Card>
       <CardHeader class="gap-4 md:flex-row md:items-start md:justify-between">
         <div class="space-y-2">
@@ -152,6 +158,12 @@ onMounted(() => {
         </details>
       </CardContent>
     </Card>
+
+    <div class="flex justify-start">
+      <Button as-child variant="secondary">
+        <NuxtLink to="/procurements">К списку закупок</NuxtLink>
+      </Button>
+    </div>
   </template>
 
   <EmptyState

@@ -79,6 +79,11 @@ function normalizeReportDetail(report: ReportDetail | null): ReportDetail | null
       ...item,
       orders: asArray(item.orders)
     })),
+    nppNicheOrders: asArray(report.nppNicheOrders).map((item) => ({
+      ...item,
+      stations: asArray(item.stations),
+      orders: asArray(item.orders)
+    })),
     recentSourceRuns: asArray(report.recentSourceRuns),
     recentProcurements: asArray(report.recentProcurements)
   };

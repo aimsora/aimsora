@@ -1,5 +1,11 @@
 <script setup lang="ts">
 import { NPP_FOCUS_OPTIONS, getProcurementNppFocus } from "~/utils/procurement-focus";
+import {
+  REPORT_TYPE_CADENCES,
+  REPORT_TYPE_DESCRIPTIONS,
+  REPORT_TYPE_LABELS,
+  getReportListRouteByType
+} from "~/utils/report-sections";
 
 definePageMeta({
   title: "Дашборд",
@@ -32,6 +38,9 @@ const analytics = computed(() => analyticsData.summary.value);
 const scraperOverview = computed(() => scraperAdmin.overview.value);
 
 const isPlainUser = computed(() => role.value === "USER");
+const isAnalyst = computed(() => role.value === "ANALYST");
+const isDeveloper = computed(() => role.value === "DEVELOPER");
+const isAdmin = computed(() => role.value === "ADMIN");
 const canViewAnalytics = computed(() => auth.can("analytics.view"));
 const canViewReports = computed(() => auth.can("reports.view"));
 const canGenerateReports = computed(() => auth.can("reports.generate"));
@@ -153,6 +162,46 @@ const roleBadges = computed(() => {
   }
 
   return items;
+});
+
+const analyticsSectionDescription = computed(() => {
+  if (isAdmin.value) {
+    return "Бизнес-аналитика вынесена в отдельный слой: здесь видны сроки, объёмы, структура потока и атомный контур без инженерного шума.";
+  }
+
+  if (isAnalyst.value) {
+    return "Это основной рабочий слой аналитика: дедлайны, распределение потока, атомный контур и свежие закупки, которые стоит разбирать в первую очередь.";
+  }
+
+  return "Аналитический слой недоступен для вашей текущей роли.";
+});
+
+const parsersSectionDescription = computed(() => {
+  if (isAdmin.value) {
+    return "Технический контур собран отдельно: runtime, проблемные источники, инциденты и детальные сигналы по сборщикам в одном инженерном блоке.";
+  }
+
+  if (isDeveloper.value) {
+    return "Это рабочая инженерная секция: сначала runtime и проблемные источники, затем инциденты и детальное состояние контуров сбора.";
+  }
+
+  return "Инженерный слой парсеров скрыт для вашей текущей роли.";
+});
+
+const reportsSectionDescription = computed(() => {
+  if (isAdmin.value) {
+    return "Отчётный слой показывает готовность сценариев для бизнеса и техники: что уже собрано, что пересчитывается и куда переходить за деталями.";
+  }
+
+  if (isAnalyst.value) {
+    return "Здесь собраны готовые аналитические сценарии по поставщикам, нишам и атомным закупкам, чтобы быстро переходить от сводки к детальному отчёту.";
+  }
+
+  if (isDeveloper.value) {
+    return "Для разработчика отчётный слой полезен как отдельная витрина технических и сервисных сценариев, не смешанная с runtime-панелью.";
+  }
+
+  return "Отчётный слой недоступен для вашей текущей роли.";
 });
 
 const dashboardGuide = computed(() => {
@@ -386,6 +435,109 @@ const reportSignals = computed(() => {
   }));
 });
 
+const reportCards = computed(() => {
+  if (!canViewReports.value) {
+    return [];
+  }
+
+  const reports = reportsData.reports.value;
+  const ready = reports.filter((item) => item.status === "READY").length;
+  const pending = reports.filter((item) => item.status === "PENDING").length;
+  const failed = reports.filter((item) => item.status === "FAILED").length;
+  const latestUpdatedAt = [...reports]
+    .sort(
+      (left, right) =>
+        new Date(right.updatedAt ?? right.createdAt).getTime() -
+        new Date(left.updatedAt ?? left.createdAt).getTime()
+    )[0]?.updatedAt;
+
+  return [
+    {
+      label: "Доступные отчёты",
+      value: formatNumber(reports.length),
+      hint: "Сценарии, доступные для вашей текущей роли"
+    },
+    {
+      label: "Готовые версии",
+      value: formatNumber(ready),
+      hint: "Можно сразу открывать детальные страницы"
+    },
+    {
+      label: "В пересчёте",
+      value: formatNumber(pending),
+      hint: "Сценарии, которые сейчас формируются или обновляются"
+    },
+    {
+      label: "Последнее обновление",
+      value: latestUpdatedAt ? shortDate(latestUpdatedAt) : "Нет данных",
+      hint: failed > 0 ? `С ошибкой: ${formatNumber(failed)}` : "Ошибок формирования сейчас не видно"
+    }
+  ];
+});
+
+const reportStatusSegments = computed(() => {
+  const counters = new Map<string, number>();
+
+  for (const item of reportsData.reports.value) {
+    counters.set(item.status, (counters.get(item.status) ?? 0) + 1);
+  }
+
+  return Array.from(counters.entries()).map(([status, count]) => ({
+    label: formatEnumLabel(status),
+    value: count,
+    valueLabel: formatNumber(count),
+    accent:
+      status === "READY"
+        ? ("success" as const)
+        : status === "FAILED"
+          ? ("danger" as const)
+          : ("warning" as const)
+  }));
+});
+
+const reportTypeItems = computed(() => {
+  const counters = new Map<
+    string,
+    {
+      count: number;
+      latestUpdatedAt: string;
+    }
+  >();
+
+  for (const item of reportsData.reports.value) {
+    const existing = counters.get(item.reportType);
+    const updatedAt = item.updatedAt ?? item.createdAt;
+
+    if (!existing) {
+      counters.set(item.reportType, {
+        count: 1,
+        latestUpdatedAt: updatedAt
+      });
+      continue;
+    }
+
+    counters.set(item.reportType, {
+      count: existing.count + 1,
+      latestUpdatedAt:
+        new Date(updatedAt).getTime() > new Date(existing.latestUpdatedAt).getTime()
+          ? updatedAt
+          : existing.latestUpdatedAt
+    });
+  }
+
+  return Array.from(counters.entries())
+    .map(([reportType, item]) => ({
+      label: REPORT_TYPE_LABELS[reportType] ?? reportType,
+      value: item.count,
+      valueLabel: formatNumber(item.count),
+      note: `${REPORT_TYPE_CADENCES[reportType] ?? "По расписанию"} · обновлено ${shortDate(item.latestUpdatedAt)}`,
+      accent: "primary" as const,
+      href: getReportListRouteByType(reportType),
+      description: REPORT_TYPE_DESCRIPTIONS[reportType] ?? "Детальный сценарий отчётности."
+    }))
+    .sort((left, right) => right.value - left.value || left.label.localeCompare(right.label, "ru"));
+});
+
 const runtimeCards = computed(() => {
   const overview = scraperOverview.value;
   const sources = overview?.sources ?? [];
@@ -564,131 +716,74 @@ onMounted(async () => {
   <ErrorState v-else-if="error" :description="error" action-label="Повторить" @action="reload()" />
 
   <template v-else-if="summary">
-    <Card class="overflow-hidden border-border/70 bg-gradient-to-br from-background via-background to-muted/30">
-      <CardContent class="grid gap-6 p-6 lg:grid-cols-[1.15fr_0.85fr]">
-        <div class="space-y-4">
-          <div class="flex flex-wrap gap-2">
-            <Badge v-for="item in roleBadges" :key="item" variant="secondary">{{ item }}</Badge>
-          </div>
-          <div class="space-y-2">
-            <p class="text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">Общая картина</p>
-            <h2 class="text-2xl font-semibold tracking-tight">Поток закупок и сбор данных разложены по темам</h2>
-            <p class="max-w-3xl text-sm leading-6 text-muted-foreground">
-              Верхний блок отвечает на вопрос “что происходит сейчас”, диаграммы ниже показывают
-              структуру и динамику, а операционные и инженерные секции уже вынесены отдельно.
-            </p>
-          </div>
-        </div>
-
-        <div class="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
-          <div
-            v-for="item in dashboardGuide"
-            :key="item.title"
-            class="rounded-3xl border border-border/70 bg-background/70 p-4 backdrop-blur"
-          >
-            <p class="text-sm font-semibold">{{ item.title }}</p>
-            <p class="mt-2 text-sm leading-6 text-muted-foreground">{{ item.text }}</p>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-
-    <template v-if="canViewAnalytics">
-      <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          v-for="card in overviewCards"
-          :key="card.label"
-          :label="card.label"
-          :value="card.value"
-          :hint="card.hint"
-        />
-      </div>
-
-      <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          v-for="card in analyticsCards"
-          :key="card.label"
-          :label="card.label"
-          :value="card.value"
-          :hint="card.hint"
-        />
-      </div>
-
-      <div class="grid gap-4 xl:grid-cols-[0.92fr_1.08fr]">
-        <Card>
-          <CardHeader>
-            <CardTitle>Статусы потока</CardTitle>
-            <CardDescription>
-              Слева видно распределение закупок по жизненному циклу, справа — в каком состоянии были последние прогоны.
-            </CardDescription>
-          </CardHeader>
-          <CardContent class="space-y-6">
-            <div class="space-y-3">
-              <div class="flex items-center justify-between">
-                <p class="text-sm font-medium">Закупки в базе</p>
-                <p class="text-sm text-muted-foreground">{{ formatNumber(summary.totalProcurements) }}</p>
-              </div>
-              <MetricStackBar :segments="statusDistributionSegments" />
+    <div class="space-y-6">
+      <Card class="overflow-hidden border-border/70 bg-gradient-to-br from-background via-background to-muted/30">
+        <CardContent class="grid gap-6 p-6 lg:grid-cols-[1.15fr_0.85fr]">
+          <div class="space-y-4">
+            <div class="flex flex-wrap gap-2">
+              <Badge v-for="item in roleBadges" :key="item" variant="secondary">{{ item }}</Badge>
             </div>
-
-            <div class="space-y-3">
-              <div class="flex items-center justify-between">
-                <p class="text-sm font-medium">Последние source runs</p>
-                <p class="text-sm text-muted-foreground">{{ formatNumber(summary.recentSourceRuns.length) }}</p>
-              </div>
-              <MetricStackBar :segments="runStatusSegments" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Где сосредоточен поток</CardTitle>
-            <CardDescription>
-              Быстрая диаграмма по источникам помогает увидеть, кто формирует основной объём и где смещение становится заметным.
-            </CardDescription>
-          </CardHeader>
-          <CardContent class="space-y-5">
-            <MetricBarList :items="sourceDistributionItems" />
-
-            <div class="rounded-3xl border bg-muted/15 p-4">
-              <p class="text-sm font-medium">Как читать эту диаграмму</p>
-              <p class="mt-2 text-sm leading-6 text-muted-foreground">
-                Если один источник начинает резко доминировать или, наоборот, исчезает из верхней части списка,
-                это обычно первый сигнал для проверки свежести данных и контуров публикации.
+            <div class="space-y-2">
+              <p class="text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">Ролевая витрина</p>
+              <h2 class="text-2xl font-semibold tracking-tight">Дашборд разложен по категориям, а не в одну длинную ленту</h2>
+              <p class="max-w-3xl text-sm leading-6 text-muted-foreground">
+                Сначала идёт понятное описание каждой категории, затем только её данные. Видимые блоки и глубина деталей зависят от вашей роли в системе.
               </p>
             </div>
-          </CardContent>
-        </Card>
-      </div>
+          </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Динамика обновления</CardTitle>
-          <CardDescription>
-            Интерактивный line chart показывает, как менялся объём обновлённых закупок за последние точки временного ряда.
-          </CardDescription>
-        </CardHeader>
-        <CardContent class="space-y-4">
-          <MetricLineChartInteractive :items="timelineItems" />
-          <p class="text-sm leading-6 text-muted-foreground">
-            График помогает быстро отличить ровный поток от провалов. Если линия заметно уходит вниз подряд,
-            это уже повод проверить конкретные источники и последние прогоны.
-          </p>
+          <div class="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
+            <div
+              v-for="item in dashboardGuide"
+              :key="item.title"
+              class="rounded-3xl border border-border/70 bg-background/70 p-4 backdrop-blur"
+            >
+              <p class="text-sm font-semibold">{{ item.title }}</p>
+              <p class="mt-2 text-sm leading-6 text-muted-foreground">{{ item.text }}</p>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
-      <Card v-if="nppRecentProcurements.length > 0">
-        <CardHeader>
-          <CardTitle>Закупки для АЭС России</CardTitle>
-          <CardDescription>
-            Отдельный атомный слой теперь считается по собственному окну атомных закупок, чтобы активность АЭС не терялась на фоне общего потока.
-          </CardDescription>
-        </CardHeader>
-        <CardContent class="space-y-6">
-          <div class="grid gap-4 md:grid-cols-3">
+      <section class="space-y-4">
+        <Card class="overflow-hidden border-border/70 bg-gradient-to-br from-sky-500/10 via-background to-background">
+          <CardContent class="grid gap-6 p-6 lg:grid-cols-[1.15fr_0.85fr]">
+            <div class="space-y-3">
+              <div class="flex flex-wrap gap-2">
+                <Badge variant="secondary">Аналитика</Badge>
+                <Badge :variant="canViewAnalytics ? 'success' : 'outline'">
+                  {{ canViewAnalytics ? "Доступно" : "Недоступно для роли" }}
+                </Badge>
+              </div>
+              <div class="space-y-2">
+                <h3 class="text-2xl font-semibold tracking-tight">Аналитика</h3>
+                <p class="max-w-3xl text-sm leading-6 text-muted-foreground">
+                  {{ analyticsSectionDescription }}
+                </p>
+              </div>
+            </div>
+
+            <div class="flex flex-wrap items-start justify-start gap-2 lg:justify-end">
+              <Button v-if="canViewAnalytics" as-child variant="secondary">
+                <NuxtLink to="/analytics/overview">Обзор аналитики</NuxtLink>
+              </Button>
+              <Button v-if="canViewAnalytics" as-child variant="outline">
+                <NuxtLink to="/analytics/suppliers">Поставщики</NuxtLink>
+              </Button>
+              <Button v-if="canViewAnalytics" as-child variant="outline">
+                <NuxtLink to="/analytics/npp">АЭС</NuxtLink>
+              </Button>
+              <Button v-if="canViewAnalytics" as-child variant="ghost">
+                <NuxtLink to="/procurements">Закупки</NuxtLink>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <template v-if="canViewAnalytics">
+          <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <StatCard
-              v-for="card in nppFocusCards"
+              v-for="card in overviewCards"
               :key="card.label"
               :label="card.label"
               :value="card.value"
@@ -696,442 +791,682 @@ onMounted(async () => {
             />
           </div>
 
-          <div class="grid gap-4 xl:grid-cols-2">
-            <Card
-              v-for="station in nppStationGroups"
-              :key="station.station"
-              class="border-dashed"
-            >
-              <CardHeader class="gap-3">
-                <div class="flex items-start justify-between gap-3">
-                  <div class="space-y-1">
-                    <CardTitle class="text-base">{{ station.station }}</CardTitle>
-                    <CardDescription>
-                      Поток закупок по станции в выделенном атомном окне дашборда.
-                    </CardDescription>
-                  </div>
-                  <Badge variant="secondary">
-                    {{ formatNumber(station.count) }}
-                  </Badge>
-                </div>
+          <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <StatCard
+              v-for="card in analyticsCards"
+              :key="card.label"
+              :label="card.label"
+              :value="card.value"
+              :hint="card.hint"
+            />
+          </div>
+
+          <div class="grid gap-4 xl:grid-cols-[0.92fr_1.08fr]">
+            <Card>
+              <CardHeader>
+                <CardTitle>Статусы потока</CardTitle>
+                <CardDescription>
+                  В одном месте видно жизненный цикл закупок и состояние последних прогонов, чтобы аналитика сразу читалась как поток.
+                </CardDescription>
               </CardHeader>
-              <CardContent class="space-y-3">
-                <div
-                  v-if="station.items.length === 0"
-                  class="rounded-2xl border border-dashed border-border/70 bg-muted/10 p-4 text-sm text-muted-foreground"
-                >
-                  В текущем окне свежих закупок по этой станции пока нет.
-                </div>
-                <div
-                  v-for="item in station.items"
-                  :key="item.id"
-                  class="rounded-2xl border border-border/70 bg-muted/15 p-4"
-                >
-                  <div class="flex items-start justify-between gap-3">
-                    <div class="space-y-1">
-                      <p class="text-sm font-semibold">{{ item.title }}</p>
-                      <p class="text-sm text-muted-foreground">
-                        Заказчик: {{ item.customer || "Не указан" }}
-                      </p>
-                    </div>
-                    <Badge :variant="badgeVariant(item.status)">{{ formatEnumLabel(item.status) }}</Badge>
+              <CardContent class="space-y-6">
+                <div class="space-y-3">
+                  <div class="flex items-center justify-between">
+                    <p class="text-sm font-medium">Закупки в базе</p>
+                    <p class="text-sm text-muted-foreground">{{ formatNumber(summary.totalProcurements) }}</p>
                   </div>
-                  <div class="mt-3 flex flex-wrap gap-3 text-sm text-muted-foreground">
-                    <span>{{ item.externalId }}</span>
-                    <span>{{ formatCurrency(item.amount, item.currency) }}</span>
-                    <span>{{ formatDateTime(item.updatedAt) }}</span>
-                  </div>
+                  <MetricStackBar :segments="statusDistributionSegments" />
                 </div>
-                <div
-                  v-if="station.count > station.items.length"
-                  class="rounded-2xl border border-dashed border-border/70 bg-muted/10 p-4 text-sm text-muted-foreground"
-                >
-                  Показаны последние {{ formatNumber(station.items.length) }} из {{ formatNumber(station.count) }} записей по станции.
+
+                <div class="space-y-3">
+                  <div class="flex items-center justify-between">
+                    <p class="text-sm font-medium">Последние source runs</p>
+                    <p class="text-sm text-muted-foreground">{{ formatNumber(summary.recentSourceRuns.length) }}</p>
+                  </div>
+                  <MetricStackBar :segments="runStatusSegments" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Где сосредоточен поток</CardTitle>
+                <CardDescription>
+                  Быстрая диаграмма показывает, какие источники формируют основной объём и где перекос уже становится заметным.
+                </CardDescription>
+              </CardHeader>
+              <CardContent class="space-y-5">
+                <MetricBarList :items="sourceDistributionItems" />
+
+                <div class="rounded-3xl border bg-muted/15 p-4">
+                  <p class="text-sm font-medium">Как читать эту диаграмму</p>
+                  <p class="mt-2 text-sm leading-6 text-muted-foreground">
+                    Если один источник резко доминирует или пропадает из верхней части списка, это обычно первый сигнал на проверку свежести данных и контура публикации.
+                  </p>
                 </div>
               </CardContent>
             </Card>
           </div>
-        </CardContent>
-      </Card>
 
-      <div class="grid gap-4 xl:grid-cols-[1.25fr_0.75fr]">
-        <Card>
-          <CardHeader>
-            <CardTitle>Оперативный список закупок</CardTitle>
-            <CardDescription>
-              Здесь только свежие записи, чтобы не смешивать “общую картину” и “что открыть прямо сейчас”.
-              Для атомной темы отдельно выводится станция назначения, если она распознана в данных ЕИС.
-            </CardDescription>
-          </CardHeader>
-          <CardContent class="space-y-4">
-            <div class="flex flex-wrap items-center gap-2">
-              <Badge variant="secondary">
-                Найдено: {{ formatNumber(filteredRecentProcurements.length) }}
-              </Badge>
-              <Badge variant="outline">
-                Всего в окне: {{ formatNumber(recentProcurements.length) }}
-              </Badge>
-            </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Динамика обновления</CardTitle>
+              <CardDescription>
+                Интерактивный line chart показывает, как менялся объём обновлённых закупок во времени.
+              </CardDescription>
+            </CardHeader>
+            <CardContent class="space-y-4">
+              <MetricLineChartInteractive :items="timelineItems" />
+              <p class="text-sm leading-6 text-muted-foreground">
+                График помогает быстро отличить ровный поток от провалов. Если линия подряд уходит вниз, это повод проверить конкретные источники и свежие прогоны.
+              </p>
+            </CardContent>
+          </Card>
 
-            <div class="grid gap-4 lg:grid-cols-[1.4fr_1fr_1fr_1fr_auto]">
-              <div class="space-y-2">
-                <Label for="dashboard-procurement-search">Поиск</Label>
-                <Input
-                  id="dashboard-procurement-search"
-                  v-model="recentProcurementSearch"
-                  placeholder="Название, ID, заказчик или станция"
+          <Card v-if="nppRecentProcurements.length > 0">
+            <CardHeader>
+              <CardTitle>Атомный контур</CardTitle>
+              <CardDescription>
+                Отдельный блок по АЭС не теряется на фоне общего потока: видны станции, сумма и самые свежие карточки атомных закупок.
+              </CardDescription>
+            </CardHeader>
+            <CardContent class="space-y-6">
+              <div class="grid gap-4 md:grid-cols-3">
+                <StatCard
+                  v-for="card in nppFocusCards"
+                  :key="card.label"
+                  :label="card.label"
+                  :value="card.value"
+                  :hint="card.hint"
                 />
               </div>
 
-              <div class="space-y-2">
-                <Label for="dashboard-procurement-source">Источник</Label>
-                <Select v-model="selectedRecentSource">
-                  <SelectTrigger id="dashboard-procurement-source">
-                    <SelectValue placeholder="Все источники" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem :value="allRecentSourcesValue">Все источники</SelectItem>
-                    <SelectItem
-                      v-for="source in recentProcurementSourceOptions"
-                      :key="source.value"
-                      :value="source.value"
-                    >
-                      {{ source.label }}
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div class="space-y-2">
-                <Label for="dashboard-procurement-status">Статус</Label>
-                <Select v-model="selectedRecentStatus">
-                  <SelectTrigger id="dashboard-procurement-status">
-                    <SelectValue placeholder="Все статусы" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem
-                      v-for="status in recentProcurementStatusOptions"
-                      :key="status.value"
-                      :value="status.value"
-                    >
-                      {{ status.label }}
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div class="space-y-2">
-                <Label for="dashboard-procurement-npp-focus">Цель АЭС</Label>
-                <Select v-model="selectedRecentNppFocus">
-                  <SelectTrigger id="dashboard-procurement-npp-focus">
-                    <SelectValue placeholder="Все станции" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem :value="allRecentNppFocusValue">Все станции</SelectItem>
-                    <SelectItem
-                      v-for="station in NPP_FOCUS_OPTIONS"
-                      :key="station"
-                      :value="station"
-                    >
-                      {{ station }}
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div class="flex items-end">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  @click="
-                    recentProcurementSearch = '';
-                    selectedRecentSource = allRecentSourcesValue;
-                    selectedRecentStatus = allRecentStatusesValue;
-                    selectedRecentNppFocus = allRecentNppFocusValue;
-                  "
+              <div class="grid gap-4 xl:grid-cols-2">
+                <Card
+                  v-for="station in nppStationGroups"
+                  :key="station.station"
+                  class="border-dashed"
                 >
-                  Сбросить
-                </Button>
-              </div>
-            </div>
-
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Закупка</TableHead>
-                  <TableHead>Источник</TableHead>
-                  <TableHead>Сумма</TableHead>
-                  <TableHead>Статус</TableHead>
-                  <TableHead>Обновлена</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow
-                  v-for="item in filteredRecentProcurements"
-                  :key="item.id"
-                  class="cursor-pointer"
-                  @click="navigateTo(`/procurements/${item.id}`)"
-                >
-                  <TableCell>
-                    <div class="space-y-1">
-                      <p class="font-medium">{{ item.title }}</p>
-                      <p class="text-sm text-muted-foreground">{{ item.externalId }}</p>
-                      <p
-                        v-if="procurementFocusLabel(item.rawPayload)"
-                        class="text-xs font-medium text-primary"
-                      >
-                        Цель АЭС: {{ procurementFocusLabel(item.rawPayload) }}
-                      </p>
+                  <CardHeader class="gap-3">
+                    <div class="flex items-start justify-between gap-3">
+                      <div class="space-y-1">
+                        <CardTitle class="text-base">{{ station.station }}</CardTitle>
+                        <CardDescription>
+                          Поток закупок по станции в выделенном атомном окне дашборда.
+                        </CardDescription>
+                      </div>
+                      <Badge variant="secondary">
+                        {{ formatNumber(station.count) }}
+                      </Badge>
                     </div>
-                  </TableCell>
-                  <TableCell>{{ item.source }}</TableCell>
-                  <TableCell>{{ formatCurrency(item.amount, item.currency) }}</TableCell>
-                  <TableCell>
-                    <Badge :variant="badgeVariant(item.status)">{{ formatEnumLabel(item.status) }}</Badge>
-                  </TableCell>
-                  <TableCell>{{ formatDateTime(item.updatedAt) }}</TableCell>
-                </TableRow>
-                <TableRow v-if="filteredRecentProcurements.length === 0">
-                  <TableCell colspan="5" class="py-10 text-center text-sm text-muted-foreground">
-                    По текущим фильтрам свежих закупок не найдено.
-                  </TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
+                  </CardHeader>
+                  <CardContent class="space-y-3">
+                    <div
+                      v-if="station.items.length === 0"
+                      class="rounded-2xl border border-dashed border-border/70 bg-muted/10 p-4 text-sm text-muted-foreground"
+                    >
+                      В текущем окне свежих закупок по этой станции пока нет.
+                    </div>
+                    <div
+                      v-for="item in station.items"
+                      :key="item.id"
+                      class="rounded-2xl border border-border/70 bg-muted/15 p-4"
+                    >
+                      <div class="flex items-start justify-between gap-3">
+                        <div class="space-y-1">
+                          <p class="text-sm font-semibold">{{ item.title }}</p>
+                          <p class="text-sm text-muted-foreground">
+                            Заказчик: {{ item.customer || "Не указан" }}
+                          </p>
+                        </div>
+                        <Badge :variant="badgeVariant(item.status)">{{ formatEnumLabel(item.status) }}</Badge>
+                      </div>
+                      <div class="mt-3 flex flex-wrap gap-3 text-sm text-muted-foreground">
+                        <span>{{ item.externalId }}</span>
+                        <span>{{ formatCurrency(item.amount, item.currency) }}</span>
+                        <span>{{ formatDateTime(item.updatedAt) }}</span>
+                      </div>
+                    </div>
+                    <div
+                      v-if="station.count > station.items.length"
+                      class="rounded-2xl border border-dashed border-border/70 bg-muted/10 p-4 text-sm text-muted-foreground"
+                    >
+                      Показаны последние {{ formatNumber(station.items.length) }} из {{ formatNumber(station.count) }} записей по станции.
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </CardContent>
+          </Card>
+
+          <div class="grid gap-4 xl:grid-cols-[1.25fr_0.75fr]">
+            <Card>
+              <CardHeader>
+                <CardTitle>Оперативный список закупок</CardTitle>
+                <CardDescription>
+                  Здесь только свежие записи, чтобы не смешивать общую аналитику и список того, что логично открыть прямо сейчас.
+                </CardDescription>
+              </CardHeader>
+              <CardContent class="space-y-4">
+                <div class="flex flex-wrap items-center gap-2">
+                  <Badge variant="secondary">
+                    Найдено: {{ formatNumber(filteredRecentProcurements.length) }}
+                  </Badge>
+                  <Badge variant="outline">
+                    Всего в окне: {{ formatNumber(recentProcurements.length) }}
+                  </Badge>
+                </div>
+
+                <div class="grid gap-4 lg:grid-cols-[1.4fr_1fr_1fr_1fr_auto]">
+                  <div class="space-y-2">
+                    <Label for="dashboard-procurement-search">Поиск</Label>
+                    <Input
+                      id="dashboard-procurement-search"
+                      v-model="recentProcurementSearch"
+                      placeholder="Название, ID, заказчик или станция"
+                    />
+                  </div>
+
+                  <div class="space-y-2">
+                    <Label for="dashboard-procurement-source">Источник</Label>
+                    <Select v-model="selectedRecentSource">
+                      <SelectTrigger id="dashboard-procurement-source">
+                        <SelectValue placeholder="Все источники" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem :value="allRecentSourcesValue">Все источники</SelectItem>
+                        <SelectItem
+                          v-for="source in recentProcurementSourceOptions"
+                          :key="source.value"
+                          :value="source.value"
+                        >
+                          {{ source.label }}
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div class="space-y-2">
+                    <Label for="dashboard-procurement-status">Статус</Label>
+                    <Select v-model="selectedRecentStatus">
+                      <SelectTrigger id="dashboard-procurement-status">
+                        <SelectValue placeholder="Все статусы" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem
+                          v-for="status in recentProcurementStatusOptions"
+                          :key="status.value"
+                          :value="status.value"
+                        >
+                          {{ status.label }}
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div class="space-y-2">
+                    <Label for="dashboard-procurement-npp-focus">Цель АЭС</Label>
+                    <Select v-model="selectedRecentNppFocus">
+                      <SelectTrigger id="dashboard-procurement-npp-focus">
+                        <SelectValue placeholder="Все станции" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem :value="allRecentNppFocusValue">Все станции</SelectItem>
+                        <SelectItem
+                          v-for="station in NPP_FOCUS_OPTIONS"
+                          :key="station"
+                          :value="station"
+                        >
+                          {{ station }}
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div class="flex items-end">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      @click="
+                        recentProcurementSearch = '';
+                        selectedRecentSource = allRecentSourcesValue;
+                        selectedRecentStatus = allRecentStatusesValue;
+                        selectedRecentNppFocus = allRecentNppFocusValue;
+                      "
+                    >
+                      Сбросить
+                    </Button>
+                  </div>
+                </div>
+
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Закупка</TableHead>
+                      <TableHead>Источник</TableHead>
+                      <TableHead>Сумма</TableHead>
+                      <TableHead>Статус</TableHead>
+                      <TableHead>Обновлена</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow
+                      v-for="item in filteredRecentProcurements"
+                      :key="item.id"
+                      class="cursor-pointer"
+                      @click="navigateTo(`/procurements/${item.id}`)"
+                    >
+                      <TableCell>
+                        <div class="space-y-1">
+                          <p class="font-medium">{{ item.title }}</p>
+                          <p class="text-sm text-muted-foreground">{{ item.externalId }}</p>
+                          <p
+                            v-if="procurementFocusLabel(item.rawPayload)"
+                            class="text-xs font-medium text-primary"
+                          >
+                            Цель АЭС: {{ procurementFocusLabel(item.rawPayload) }}
+                          </p>
+                        </div>
+                      </TableCell>
+                      <TableCell>{{ item.source }}</TableCell>
+                      <TableCell>{{ formatCurrency(item.amount, item.currency) }}</TableCell>
+                      <TableCell>
+                        <Badge :variant="badgeVariant(item.status)">{{ formatEnumLabel(item.status) }}</Badge>
+                      </TableCell>
+                      <TableCell>{{ formatDateTime(item.updatedAt) }}</TableCell>
+                    </TableRow>
+                    <TableRow v-if="filteredRecentProcurements.length === 0">
+                      <TableCell colspan="5" class="py-10 text-center text-sm text-muted-foreground">
+                        По текущим фильтрам свежих закупок не найдено.
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Фокус по источникам</CardTitle>
+                <CardDescription>
+                  Небольшой оперативный блок, чтобы читать активность и свежесть источников без перехода в отдельную страницу.
+                </CardDescription>
+              </CardHeader>
+              <CardContent class="space-y-3">
+                <div
+                  v-for="item in sourceFocusItems"
+                  :key="item.eyebrow"
+                  class="rounded-3xl border bg-muted/15 p-4"
+                >
+                  <div class="flex items-start justify-between gap-3">
+                    <div>
+                      <p class="text-sm font-semibold">{{ item.title }}</p>
+                      <p class="text-xs text-muted-foreground">{{ item.eyebrow }}</p>
+                    </div>
+                    <Badge :variant="item.accent">{{ item.status }}</Badge>
+                  </div>
+                  <div class="mt-3 space-y-1 text-sm text-muted-foreground">
+                    <p v-for="line in item.lines" :key="line">{{ line }}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </template>
+
+        <Card v-else class="border-dashed">
+          <CardContent class="p-6">
+            <p class="text-base font-semibold">Секция аналитики сейчас недоступна</p>
+            <p class="mt-2 text-sm leading-6 text-muted-foreground">
+              Для этой роли скрыты бизнес-метрики, риск-сигналы и закупочный слой. Если нужен этот контур, администратор может выдать права аналитика или администратора.
+            </p>
           </CardContent>
         </Card>
+      </section>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Фокус по источникам</CardTitle>
-            <CardDescription>
-              Небольшой блок для чтения свежести и активности без перехода в отдельный раздел источников.
-            </CardDescription>
-          </CardHeader>
-          <CardContent class="space-y-3">
-            <div
-              v-for="item in sourceFocusItems"
-              :key="item.eyebrow"
-              class="rounded-3xl border bg-muted/15 p-4"
-            >
-              <div class="flex items-start justify-between gap-3">
-                <div>
-                  <p class="text-sm font-semibold">{{ item.title }}</p>
-                  <p class="text-xs text-muted-foreground">{{ item.eyebrow }}</p>
-                </div>
-                <Badge :variant="item.accent">{{ item.status }}</Badge>
-              </div>
-              <div class="mt-3 space-y-1 text-sm text-muted-foreground">
-                <p v-for="line in item.lines" :key="line">{{ line }}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card v-if="canViewReports">
-        <CardHeader>
-          <CardTitle>Отчётный слой</CardTitle>
-          <CardDescription>
-            Отчёты вынесены в отдельный тематический блок, чтобы не перемешивать их с закупками и техническими метриками.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div class="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
-            <div
-              v-for="report in reportSignals"
-              :key="'id' in report ? report.id : report.title"
-              class="rounded-3xl border bg-muted/15 p-4"
-            >
-              <div class="flex items-start justify-between gap-3">
-                <div class="space-y-2">
-                  <NuxtLink
-                    v-if="'id' in report"
-                    :to="`/reports/${report.id}`"
-                    class="text-sm font-semibold text-primary hover:underline"
-                  >
-                    {{ report.title }}
-                  </NuxtLink>
-                  <p v-else class="text-sm font-semibold">{{ report.title }}</p>
-                  <p class="text-sm leading-6 text-muted-foreground">{{ report.text }}</p>
-                </div>
-                <Badge v-if="'status' in report" :variant="badgeVariant(report.status)">
-                  {{ formatEnumLabel(report.status) }}
+      <section class="space-y-4">
+        <Card class="overflow-hidden border-border/70 bg-gradient-to-br from-rose-500/10 via-background to-background">
+          <CardContent class="grid gap-6 p-6 lg:grid-cols-[1.15fr_0.85fr]">
+            <div class="space-y-3">
+              <div class="flex flex-wrap gap-2">
+                <Badge variant="secondary">Парсеры</Badge>
+                <Badge :variant="canViewScraperOverview ? 'success' : 'outline'">
+                  {{ canViewScraperOverview ? "Доступно" : "Недоступно для роли" }}
                 </Badge>
               </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </template>
-
-    <template v-if="canViewScraperOverview && scraperOverview">
-      <Card class="border-border/70 bg-gradient-to-br from-background via-background to-muted/20">
-        <CardHeader>
-          <CardTitle>Инженерный контур</CardTitle>
-          <CardDescription>
-            Технический слой вынесен отдельно: сначала runtime и зоны внимания, затем инциденты и детальная таблица источников.
-          </CardDescription>
-        </CardHeader>
-      </Card>
-
-      <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          v-for="card in runtimeCards"
-          :key="card.label"
-          :label="card.label"
-          :value="card.value"
-          :hint="card.hint"
-        />
-      </div>
-
-      <div class="grid gap-4 xl:grid-cols-[0.88fr_1.12fr]">
-        <Card>
-          <CardHeader>
-            <CardTitle>Runtime и ограничения</CardTitle>
-            <CardDescription>
-              Здесь виден текущий статус control API, применённое расписание и активные контуры защиты от сбоев.
-            </CardDescription>
-          </CardHeader>
-          <CardContent class="space-y-4">
-            <div class="flex flex-wrap items-center gap-2">
-              <Badge :variant="scraperOverview.runtime.reachable ? 'success' : 'destructive'">
-                {{ scraperOverview.runtime.reachable ? "Control API доступен" : "Control API недоступен" }}
-              </Badge>
-              <Badge variant="secondary">
-                {{ scraperOverview.runtime.autoRunEnabled ? "Автозапуск включён" : "Автозапуск выключен" }}
-              </Badge>
-              <Badge v-if="scraperOverview.runtime.running" variant="warning">Есть активный прогон</Badge>
-            </div>
-
-            <div class="grid gap-3 text-sm text-muted-foreground">
-              <div class="flex items-center justify-between">
-                <span>Применённое расписание</span>
-                <span class="font-medium text-foreground">{{ scraperOverview.runtime.schedule }}</span>
-              </div>
-              <div class="flex items-center justify-between">
-                <span>Загруженные источники</span>
-                <span class="font-medium text-foreground">
-                  {{ formatNumber(scraperOverview.runtime.loadedSources.length) }}
-                </span>
-              </div>
-              <div class="flex items-center justify-between">
-                <span>Запущены сейчас</span>
-                <span class="font-medium text-foreground">
-                  {{
-                    scraperOverview.runtime.runningSources.length > 0
-                      ? scraperOverview.runtime.runningSources.join(", ")
-                      : "Нет"
-                  }}
-                </span>
+              <div class="space-y-2">
+                <h3 class="text-2xl font-semibold tracking-tight">Парсеры</h3>
+                <p class="max-w-3xl text-sm leading-6 text-muted-foreground">
+                  {{ parsersSectionDescription }}
+                </p>
               </div>
             </div>
 
-            <div
-              v-if="scraperOverview.runtime.circuitStates.length > 0"
-              class="space-y-3 rounded-3xl border bg-muted/15 p-4"
-            >
-              <p class="font-medium">Источники в circuit breaker</p>
-              <div
-                v-for="item in scraperOverview.runtime.circuitStates"
-                :key="item.sourceCode"
-                class="flex items-center justify-between gap-3 text-sm"
-              >
-                <span>{{ item.sourceCode }}</span>
-                <span class="text-muted-foreground">
-                  {{ formatNumber(item.failures) }} ошибок · до {{ formatDateTime(item.openUntil) }}
-                </span>
-              </div>
+            <div class="flex flex-wrap items-start justify-start gap-2 lg:justify-end">
+              <Button v-if="canViewScraperOverview" as-child variant="secondary">
+                <NuxtLink to="/jobs">Операции</NuxtLink>
+              </Button>
+              <Button v-if="canViewScraperOverview" as-child variant="outline">
+                <NuxtLink to="/sources">Источники</NuxtLink>
+              </Button>
+              <Button v-if="isAdmin" as-child variant="outline">
+                <NuxtLink to="/admin/parsers">Админка парсеров</NuxtLink>
+              </Button>
+              <Button v-if="canViewReports && (isDeveloper || isAdmin)" as-child variant="ghost">
+                <NuxtLink to="/reports/parsers">Отчёты по парсерам</NuxtLink>
+              </Button>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Где требуется реакция</CardTitle>
-            <CardDescription>
-              Быстрый визуальный список проблемных источников. Сначала видны причины внимания, без чтения длинной таблицы.
-            </CardDescription>
-          </CardHeader>
-          <CardContent class="space-y-5">
-            <MetricBarList
-              :items="technicalWatchItems"
-              empty-text="Сейчас нет источников, которые требуют отдельного инженерного внимания."
+        <template v-if="canViewScraperOverview && scraperOverview">
+          <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <StatCard
+              v-for="card in runtimeCards"
+              :key="card.label"
+              :label="card.label"
+              :value="card.value"
+              :hint="card.hint"
             />
+          </div>
 
-            <div class="rounded-3xl border bg-muted/15 p-4">
-              <p class="text-sm font-medium">Как использовать этот блок</p>
-              <p class="mt-2 text-sm leading-6 text-muted-foreground">
-                Чем выше карточка в списке, тем сильнее сочетание неуспехов, публикационных потерь и внимания со стороны runtime.
-              </p>
+          <div class="grid gap-4 xl:grid-cols-[0.88fr_1.12fr]">
+            <Card>
+              <CardHeader>
+                <CardTitle>Runtime и ограничения</CardTitle>
+                <CardDescription>
+                  Здесь видно состояние control API, расписание, активные источники и контуры защиты от повторных сбоев.
+                </CardDescription>
+              </CardHeader>
+              <CardContent class="space-y-4">
+                <div class="flex flex-wrap items-center gap-2">
+                  <Badge :variant="scraperOverview.runtime.reachable ? 'success' : 'destructive'">
+                    {{ scraperOverview.runtime.reachable ? "Control API доступен" : "Control API недоступен" }}
+                  </Badge>
+                  <Badge variant="secondary">
+                    {{ scraperOverview.runtime.autoRunEnabled ? "Автозапуск включён" : "Автозапуск выключен" }}
+                  </Badge>
+                  <Badge v-if="scraperOverview.runtime.running" variant="warning">Есть активный прогон</Badge>
+                </div>
+
+                <div class="grid gap-3 text-sm text-muted-foreground">
+                  <div class="flex items-center justify-between">
+                    <span>Применённое расписание</span>
+                    <span class="font-medium text-foreground">{{ scraperOverview.runtime.schedule }}</span>
+                  </div>
+                  <div class="flex items-center justify-between">
+                    <span>Загруженные источники</span>
+                    <span class="font-medium text-foreground">
+                      {{ formatNumber(scraperOverview.runtime.loadedSources.length) }}
+                    </span>
+                  </div>
+                  <div class="flex items-center justify-between">
+                    <span>Запущены сейчас</span>
+                    <span class="font-medium text-foreground">
+                      {{
+                        scraperOverview.runtime.runningSources.length > 0
+                          ? scraperOverview.runtime.runningSources.join(", ")
+                          : "Нет"
+                      }}
+                    </span>
+                  </div>
+                </div>
+
+                <div
+                  v-if="scraperOverview.runtime.circuitStates.length > 0"
+                  class="space-y-3 rounded-3xl border bg-muted/15 p-4"
+                >
+                  <p class="font-medium">Источники в circuit breaker</p>
+                  <div
+                    v-for="item in scraperOverview.runtime.circuitStates"
+                    :key="item.sourceCode"
+                    class="flex items-center justify-between gap-3 text-sm"
+                  >
+                    <span>{{ item.sourceCode }}</span>
+                    <span class="text-muted-foreground">
+                      {{ formatNumber(item.failures) }} ошибок · до {{ formatDateTime(item.openUntil) }}
+                    </span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Где требуется реакция</CardTitle>
+                <CardDescription>
+                  Визуальный список проблемных источников, чтобы быстро увидеть инженерный приоритет без длинной таблицы.
+                </CardDescription>
+              </CardHeader>
+              <CardContent class="space-y-5">
+                <MetricBarList
+                  :items="technicalWatchItems"
+                  empty-text="Сейчас нет источников, которые требуют отдельного инженерного внимания."
+                />
+
+                <div class="rounded-3xl border bg-muted/15 p-4">
+                  <p class="text-sm font-medium">Как использовать этот блок</p>
+                  <p class="mt-2 text-sm leading-6 text-muted-foreground">
+                    Чем выше карточка в списке, тем сильнее сочетание неуспехов, публикационных потерь и внимания со стороны runtime.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Последние технические инциденты</CardTitle>
+              <CardDescription>
+                Ошибки и нестабильные прогоны вынесены отдельно, чтобы они не смешивались с бизнес-аналитикой.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <EmptyState
+                v-if="technicalIncidents.length === 0"
+                title="Критичных инцидентов нет"
+                description="Последние запуски парсеров выглядят стабильно."
+              />
+              <div v-else class="grid gap-4 lg:grid-cols-2">
+                <div
+                  v-for="incident in technicalIncidents"
+                  :key="incident.title"
+                  class="rounded-3xl border bg-muted/15 p-4"
+                >
+                  <p class="text-sm font-semibold">{{ incident.title }}</p>
+                  <p class="mt-2 text-sm leading-6 text-muted-foreground">{{ incident.text }}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Источники под инженерным наблюдением</CardTitle>
+              <CardDescription>
+                Детальная таблица остаётся в конце технической секции, уже после визуального приоритезационного слоя.
+              </CardDescription>
+            </CardHeader>
+            <CardContent class="px-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Источник</TableHead>
+                    <TableHead>Причина внимания</TableHead>
+                    <TableHead>Последняя ошибка</TableHead>
+                    <TableHead>Успех</TableHead>
+                    <TableHead>Публикация</TableHead>
+                    <TableHead>Последний запуск</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow v-for="item in scraperOverview.sources" :key="item.sourceCode">
+                    <TableCell>
+                      <div class="space-y-1">
+                        <p class="font-medium">{{ item.sourceName }}</p>
+                        <p class="text-sm text-muted-foreground">{{ item.sourceCode }}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell class="max-w-xs break-words">{{ item.attentionReason }}</TableCell>
+                    <TableCell class="max-w-xs break-words">{{ item.lastErrorMessage || "Нет ошибок" }}</TableCell>
+                    <TableCell>{{ formatPercent(item.successRate) }}</TableCell>
+                    <TableCell>{{ formatPercent(item.publicationRate) }}</TableCell>
+                    <TableCell>{{ formatDateTime(item.lastRunAt) }}</TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </template>
+
+        <Card v-else class="border-dashed">
+          <CardContent class="p-6">
+            <p class="text-base font-semibold">Секция парсеров сейчас недоступна</p>
+            <p class="mt-2 text-sm leading-6 text-muted-foreground">
+              Для этой роли скрыты runtime, технические инциденты и инженерные сигналы по источникам. Этот блок открывается разработчикам и администраторам.
+            </p>
+          </CardContent>
+        </Card>
+      </section>
+
+      <section class="space-y-4">
+        <Card class="overflow-hidden border-border/70 bg-gradient-to-br from-amber-500/10 via-background to-background">
+          <CardContent class="grid gap-6 p-6 lg:grid-cols-[1.15fr_0.85fr]">
+            <div class="space-y-3">
+              <div class="flex flex-wrap gap-2">
+                <Badge variant="secondary">Отчёты</Badge>
+                <Badge :variant="canViewReports ? 'success' : 'outline'">
+                  {{ canViewReports ? "Доступно" : "Недоступно для роли" }}
+                </Badge>
+              </div>
+              <div class="space-y-2">
+                <h3 class="text-2xl font-semibold tracking-tight">Отчёты</h3>
+                <p class="max-w-3xl text-sm leading-6 text-muted-foreground">
+                  {{ reportsSectionDescription }}
+                </p>
+              </div>
+            </div>
+
+            <div class="flex flex-wrap items-start justify-start gap-2 lg:justify-end">
+              <Button v-if="canViewReports" as-child variant="secondary">
+                <NuxtLink to="/reports">Все отчёты</NuxtLink>
+              </Button>
+              <Button v-if="isAnalyst || isAdmin" as-child variant="outline">
+                <NuxtLink to="/reports/suppliers">Поставщики</NuxtLink>
+              </Button>
+              <Button v-if="isAnalyst || isAdmin" as-child variant="outline">
+                <NuxtLink to="/reports/niches">Ниши</NuxtLink>
+              </Button>
+              <Button v-if="isAnalyst || isAdmin" as-child variant="outline">
+                <NuxtLink to="/reports/aes">АЭС</NuxtLink>
+              </Button>
+              <Button v-if="isDeveloper || isAdmin" as-child variant="ghost">
+                <NuxtLink to="/reports/parsers">Парсеры</NuxtLink>
+              </Button>
             </div>
           </CardContent>
         </Card>
-      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Последние технические инциденты</CardTitle>
-          <CardDescription>
-            Отдельный список, чтобы ошибки не смешивались с аналитическими блоками и оперативным списком закупок.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <EmptyState
-            v-if="technicalIncidents.length === 0"
-            title="Критичных инцидентов нет"
-            description="Последние запуски парсеров выглядят стабильно."
-          />
-          <div v-else class="grid gap-4 lg:grid-cols-2">
-            <div
-              v-for="incident in technicalIncidents"
-              :key="incident.title"
-              class="rounded-3xl border bg-muted/15 p-4"
-            >
-              <p class="text-sm font-semibold">{{ incident.title }}</p>
-              <p class="mt-2 text-sm leading-6 text-muted-foreground">{{ incident.text }}</p>
-            </div>
+        <template v-if="canViewReports">
+          <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <StatCard
+              v-for="card in reportCards"
+              :key="card.label"
+              :label="card.label"
+              :value="card.value"
+              :hint="card.hint"
+            />
           </div>
-        </CardContent>
-      </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Источники под инженерным наблюдением</CardTitle>
-          <CardDescription>
-            Детальная таблица остаётся на месте, но теперь идёт после визуального приоритезационного слоя.
-          </CardDescription>
-        </CardHeader>
-        <CardContent class="px-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Источник</TableHead>
-                <TableHead>Причина внимания</TableHead>
-                <TableHead>Последняя ошибка</TableHead>
-                <TableHead>Успех</TableHead>
-                <TableHead>Публикация</TableHead>
-                <TableHead>Последний запуск</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <TableRow v-for="item in scraperOverview.sources" :key="item.sourceCode">
-                <TableCell>
-                  <div class="space-y-1">
-                    <p class="font-medium">{{ item.sourceName }}</p>
-                    <p class="text-sm text-muted-foreground">{{ item.sourceCode }}</p>
+          <div class="grid gap-4 xl:grid-cols-[0.88fr_1.12fr]">
+            <Card>
+              <CardHeader>
+                <CardTitle>Статусы отчётного контура</CardTitle>
+                <CardDescription>
+                  Показывает, сколько сценариев уже готовы, сколько пересчитываются и где есть проблемы формирования.
+                </CardDescription>
+              </CardHeader>
+              <CardContent class="space-y-4">
+                <div class="flex items-center justify-between">
+                  <p class="text-sm font-medium">Все версии отчётов</p>
+                  <p class="text-sm text-muted-foreground">{{ formatNumber(reportsData.reports.value.length) }}</p>
+                </div>
+                <MetricStackBar :segments="reportStatusSegments" />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Типы доступных отчётов</CardTitle>
+                <CardDescription>
+                  Отдельный список по сценариям, чтобы понимать, какие срезы уже есть для вашей роли и как часто они обновляются.
+                </CardDescription>
+              </CardHeader>
+              <CardContent class="grid gap-3">
+                <NuxtLink
+                  v-for="item in reportTypeItems"
+                  :key="item.label"
+                  :to="item.href"
+                  class="rounded-3xl border bg-muted/15 p-4 transition hover:border-primary/40 hover:bg-muted/25"
+                >
+                  <div class="flex items-start justify-between gap-3">
+                    <div class="space-y-1">
+                      <p class="text-sm font-semibold">{{ item.label }}</p>
+                      <p class="text-sm leading-6 text-muted-foreground">{{ item.description }}</p>
+                    </div>
+                    <Badge variant="secondary">{{ item.valueLabel }}</Badge>
                   </div>
-                </TableCell>
-                <TableCell class="max-w-xs break-words">{{ item.attentionReason }}</TableCell>
-                <TableCell class="max-w-xs break-words">{{ item.lastErrorMessage || "Нет ошибок" }}</TableCell>
-                <TableCell>{{ formatPercent(item.successRate) }}</TableCell>
-                <TableCell>{{ formatPercent(item.publicationRate) }}</TableCell>
-                <TableCell>{{ formatDateTime(item.lastRunAt) }}</TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-    </template>
+                  <p class="mt-3 text-xs text-muted-foreground">{{ item.note }}</p>
+                </NuxtLink>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Последние отчётные сигналы</CardTitle>
+              <CardDescription>
+                Здесь остаются самые свежие сценарии и быстрые переходы к деталям, уже без смешения с аналитикой и runtime.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div class="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
+                <div
+                  v-for="report in reportSignals"
+                  :key="'id' in report ? report.id : report.title"
+                  class="rounded-3xl border bg-muted/15 p-4"
+                >
+                  <div class="flex items-start justify-between gap-3">
+                    <div class="space-y-2">
+                      <NuxtLink
+                        v-if="'id' in report"
+                        :to="`/reports/${report.id}`"
+                        class="text-sm font-semibold text-primary hover:underline"
+                      >
+                        {{ report.title }}
+                      </NuxtLink>
+                      <p v-else class="text-sm font-semibold">{{ report.title }}</p>
+                      <p class="text-sm leading-6 text-muted-foreground">{{ report.text }}</p>
+                    </div>
+                    <Badge v-if="'status' in report" :variant="badgeVariant(report.status)">
+                      {{ formatEnumLabel(report.status) }}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </template>
+
+        <Card v-else class="border-dashed">
+          <CardContent class="p-6">
+            <p class="text-base font-semibold">Секция отчётов сейчас недоступна</p>
+            <p class="mt-2 text-sm leading-6 text-muted-foreground">
+              Для этой роли скрыты отчётные сценарии и готовые аналитические версии. При необходимости администратор может открыть этот слой отдельными правами.
+            </p>
+          </CardContent>
+        </Card>
+      </section>
+    </div>
   </template>
 </template>
