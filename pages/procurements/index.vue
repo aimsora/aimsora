@@ -110,24 +110,24 @@ const selectionCards = computed(() => {
 
   return [
     {
-      label: "Найдено в выборке",
+      label: "Закупки в рабочем реестре",
       value: formatNumber(procurements.total.value),
-      hint: `На текущей странице показано ${formatNumber(items.length)} строк`
+      hint: `По текущим фильтрам найдено ${formatNumber(procurements.total.value)} записей, на этой странице показано ${formatNumber(items.length)}`
     },
     {
-      label: "Активные сейчас",
+      label: "Активные закупки на странице",
       value: formatNumber(activeCount),
-      hint: "Считается по текущему срезу и применённым фильтрам"
+      hint: "Считается по строкам, которые сейчас открыты в реестре"
     },
     {
-      label: "Источники на странице",
+      label: "Источники в текущем срезе",
       value: formatNumber(new Set(items.map((item) => item.source)).size),
-      hint: "Позволяет быстро увидеть смешанный или узкий срез"
+      hint: "Показывает, насколько реестр сейчас узкий или смешанный по источникам"
     },
     {
-      label: "Последнее обновление",
+      label: "Последнее обновление данных",
       value: latestUpdatedAt ? formatDateTime(latestUpdatedAt) : "Нет данных",
-      hint: `Сумма по текущей странице: ${formatCurrency(totalAmount, "RUB")}`
+      hint: `Совокупная сумма закупок на текущей странице: ${formatCurrency(totalAmount, "RUB")}`
     }
   ];
 });

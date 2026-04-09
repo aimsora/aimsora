@@ -153,8 +153,8 @@ onMounted(() => {
     description="Единая зона для ручного запуска сборщиков, чтения последних прогонов и разбора технических инцидентов."
   />
 
-  <div v-if="jobs.loading.value" class="grid gap-4 md:grid-cols-3">
-    <Skeleton v-for="item in 3" :key="item" class="h-32 rounded-xl" />
+  <div v-if="jobs.loading.value" class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <Skeleton v-for="item in 4" :key="item" class="h-32 rounded-xl" />
   </div>
 
   <ErrorState
@@ -165,7 +165,7 @@ onMounted(() => {
   />
 
   <template v-else>
-    <div class="grid gap-4 md:grid-cols-3">
+    <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
       <StatCard
         v-for="card in summaryCards"
         :key="card.label"
@@ -179,24 +179,12 @@ onMounted(() => {
       <Card class="border-border/70 bg-gradient-to-br from-background via-background to-muted/20">
         <CardHeader>
           <CardTitle>Панель запуска</CardTitle>
-          <CardDescription>
-            Здесь собраны ручной старт и быстрые ориентиры по доступности источников. Повторный запуск уже активного
-            процесса будет пропущен сервером.
-          </CardDescription>
-        </CardHeader>
+        <CardDescription>
+          Здесь собраны ручной старт и быстрые ориентиры по доступности источников. Повторный запуск уже активного
+          процесса будет пропущен сервером.
+        </CardDescription>
+      </CardHeader>
         <CardContent class="space-y-5">
-          <div class="flex flex-wrap items-center justify-between gap-3 rounded-3xl border bg-muted/10 p-4">
-            <div class="space-y-1">
-              <p class="text-sm font-medium">Журнал запусков вынесен отдельно</p>
-              <p class="text-sm leading-6 text-muted-foreground">
-                История прогонов теперь живёт на отдельной странице, чтобы запуск источников и разбор логов не мешались на одном экране.
-              </p>
-            </div>
-            <Button as-child variant="secondary">
-              <NuxtLink to="/parser-runs">Открыть журнал</NuxtLink>
-            </Button>
-          </div>
-
           <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto_auto]">
             <div class="space-y-2">
               <Label for="jobs-source">Источник</Label>

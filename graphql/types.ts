@@ -217,6 +217,23 @@ export type AnalyticsSupplierExposureItem = {
   sharePercent: number;
 };
 
+export type AnalyticsCustomerExposureItem = {
+  customer: string;
+  procurementCount: number;
+  totalAmount: number;
+  sharePercent: number;
+};
+
+export type AnalyticsSupplierRiskWatchItem = {
+  supplier: string;
+  taxId?: string | null;
+  ogrn?: string | null;
+  riskSignalsCount: number;
+  activeRiskSignalsCount: number;
+  activeProcurements: number;
+  latestRiskAt?: string | null;
+};
+
 export type AnalyticsNppTimelineItem = {
   label: string;
   procurementCount: number;
@@ -259,6 +276,8 @@ export type AnalyticsSummary = {
   deadlinePressure: AnalyticsDeadlineBucket[];
   sourceHealth: AnalyticsSourceHealthItem[];
   supplierExposure: AnalyticsSupplierExposureItem[];
+  customerExposure: AnalyticsCustomerExposureItem[];
+  supplierRiskWatchlist: AnalyticsSupplierRiskWatchItem[];
   nppMonthlyDynamics: AnalyticsNppTimelineItem[];
   nppStationCoverage: AnalyticsNppStationItem[];
   nppSourceCoverage: AnalyticsNppSourceItem[];

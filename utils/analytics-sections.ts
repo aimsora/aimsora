@@ -17,7 +17,7 @@ export const ANALYTICS_SECTION_META: Record<AnalyticsSectionId, AnalyticsSection
   suppliers: {
     title: "Поставщики",
     pageTitle: "Аналитика: Поставщики",
-    description: "Концентрация поставщиков, здоровье источников и качество публикации.",
+    description: "Концентрация поставщиков, ключевые заказчики и сигналы добросовестности.",
     href: "/analytics/suppliers"
   },
   npp: {

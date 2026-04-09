@@ -43,7 +43,6 @@ const isDeveloper = computed(() => role.value === "DEVELOPER");
 const isAdmin = computed(() => role.value === "ADMIN");
 const canViewAnalytics = computed(() => auth.can("analytics.view"));
 const canViewReports = computed(() => auth.can("reports.view"));
-const canGenerateReports = computed(() => auth.can("reports.generate"));
 const canViewScraperOverview = computed(
   () => auth.can("scraper-admin.view") || auth.can("scraper-admin.manage")
 );
@@ -667,22 +666,7 @@ onMounted(async () => {
   <PageHeader
     title="Дашборд"
     :description="roleSummary"
-  >
-    <template #actions>
-      <div class="flex gap-2">
-        <Button
-          v-if="canGenerateReports"
-          :disabled="reportsData.refreshLoading.value"
-          @click="reportsData.refreshReports()"
-        >
-          {{ reportsData.refreshLoading.value ? "Формирование..." : "Сформировать отчёты" }}
-        </Button>
-        <Button v-if="!isPlainUser" variant="secondary" :disabled="loading" @click="reload()">
-          {{ loading ? "Обновление..." : "Обновить" }}
-        </Button>
-      </div>
-    </template>
-  </PageHeader>
+  />
 
   <Card v-if="isPlainUser">
     <CardHeader>
@@ -763,20 +747,6 @@ onMounted(async () => {
               </div>
             </div>
 
-            <div class="flex flex-wrap items-start justify-start gap-2 lg:justify-end">
-              <Button v-if="canViewAnalytics" as-child variant="secondary">
-                <NuxtLink to="/analytics/overview">Обзор аналитики</NuxtLink>
-              </Button>
-              <Button v-if="canViewAnalytics" as-child variant="outline">
-                <NuxtLink to="/analytics/suppliers">Поставщики</NuxtLink>
-              </Button>
-              <Button v-if="canViewAnalytics" as-child variant="outline">
-                <NuxtLink to="/analytics/npp">АЭС</NuxtLink>
-              </Button>
-              <Button v-if="canViewAnalytics" as-child variant="ghost">
-                <NuxtLink to="/procurements">Закупки</NuxtLink>
-              </Button>
-            </div>
           </CardContent>
         </Card>
 
@@ -1142,20 +1112,6 @@ onMounted(async () => {
               </div>
             </div>
 
-            <div class="flex flex-wrap items-start justify-start gap-2 lg:justify-end">
-              <Button v-if="canViewScraperOverview" as-child variant="secondary">
-                <NuxtLink to="/jobs">Операции</NuxtLink>
-              </Button>
-              <Button v-if="canViewScraperOverview" as-child variant="outline">
-                <NuxtLink to="/sources">Источники</NuxtLink>
-              </Button>
-              <Button v-if="isAdmin" as-child variant="outline">
-                <NuxtLink to="/admin/parsers">Админка парсеров</NuxtLink>
-              </Button>
-              <Button v-if="canViewReports && (isDeveloper || isAdmin)" as-child variant="ghost">
-                <NuxtLink to="/reports/parsers">Отчёты по парсерам</NuxtLink>
-              </Button>
-            </div>
           </CardContent>
         </Card>
 
@@ -1347,23 +1303,6 @@ onMounted(async () => {
               </div>
             </div>
 
-            <div class="flex flex-wrap items-start justify-start gap-2 lg:justify-end">
-              <Button v-if="canViewReports" as-child variant="secondary">
-                <NuxtLink to="/reports">Все отчёты</NuxtLink>
-              </Button>
-              <Button v-if="isAnalyst || isAdmin" as-child variant="outline">
-                <NuxtLink to="/reports/suppliers">Поставщики</NuxtLink>
-              </Button>
-              <Button v-if="isAnalyst || isAdmin" as-child variant="outline">
-                <NuxtLink to="/reports/niches">Ниши</NuxtLink>
-              </Button>
-              <Button v-if="isAnalyst || isAdmin" as-child variant="outline">
-                <NuxtLink to="/reports/aes">АЭС</NuxtLink>
-              </Button>
-              <Button v-if="isDeveloper || isAdmin" as-child variant="ghost">
-                <NuxtLink to="/reports/parsers">Парсеры</NuxtLink>
-              </Button>
-            </div>
           </CardContent>
         </Card>
 

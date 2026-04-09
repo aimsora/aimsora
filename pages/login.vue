@@ -63,20 +63,6 @@ async function submit() {
           </p>
         </div>
       </div>
-      <div class="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle class="text-base">Сразу в продукт</CardTitle>
-            <CardDescription>После входа система ведёт прямо в dashboard без маркетингового слоя.</CardDescription>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle class="text-base">Защищённый доступ</CardTitle>
-            <CardDescription>Все разделы, кроме логина, доступны только после авторизации.</CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
     </div>
 
     <Card class="border bg-background shadow-sm">

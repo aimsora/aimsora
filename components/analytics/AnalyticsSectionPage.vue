@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { AnalyticsSummary } from "~/graphql/types";
-import { ANALYTICS_SECTION_META, getAnalyticsSectionPath, type AnalyticsSectionId } from "~/utils/analytics-sections";
+import { ANALYTICS_SECTION_META, type AnalyticsSectionId } from "~/utils/analytics-sections";
 import { getProcurementNppFocus } from "~/utils/procurement-focus";
 
 type MetricAccent = "primary" | "success" | "warning" | "danger" | "muted";
@@ -12,14 +12,6 @@ const props = defineProps<{
 const analytics = useAnalyticsData();
 const summary = computed(() => analytics.summary.value);
 const section = computed(() => ANALYTICS_SECTION_META[props.sectionId]);
-
-const sectionTabs = computed(() =>
-  (Object.entries(ANALYTICS_SECTION_META) as Array<[AnalyticsSectionId, (typeof ANALYTICS_SECTION_META)[AnalyticsSectionId]]>)
-    .map(([id, meta]) => ({
-      id,
-      ...meta
-    }))
-);
 
 const nppPeriodLabel = computed(() =>
   summary.value
@@ -208,6 +200,45 @@ const supplierAmountItems = computed(() =>
     }))
 );
 
+const customerExposureItems = computed(() =>
+  (summary.value?.customerExposure ?? []).map((item) => ({
+    label: item.customer,
+    value: item.sharePercent,
+    valueLabel: formatPercent(item.sharePercent),
+    note: `${formatNumber(item.procurementCount)} закупок · ${formatCurrency(item.totalAmount, "RUB")}`,
+    accent: "warning" as MetricAccent
+  }))
+);
+
+const customerAmountItems = computed(() =>
+  [...(summary.value?.customerExposure ?? [])]
+    .sort((left, right) => right.totalAmount - left.totalAmount)
+    .map((item) => ({
+      label: item.customer,
+      value: item.totalAmount,
+      valueLabel: formatCurrency(item.totalAmount, "RUB"),
+      note: `${formatNumber(item.procurementCount)} закупок · доля ${formatPercent(item.sharePercent)}`,
+      accent: "primary" as MetricAccent
+    }))
+);
+
+const supplierRiskWatchItems = computed(() =>
+  (summary.value?.supplierRiskWatchlist ?? []).map((item) => ({
+    label: item.supplier,
+    value: Math.max(item.activeRiskSignalsCount, item.riskSignalsCount, 1),
+    valueLabel: `${formatNumber(item.activeRiskSignalsCount)} активных сигналов`,
+    note: [
+      item.taxId ? `ИНН ${item.taxId}` : null,
+      `${formatNumber(item.riskSignalsCount)} сигналов всего`,
+      `${formatNumber(item.activeProcurements)} активных закупок`,
+      item.latestRiskAt ? `последний сигнал ${formatDateTime(item.latestRiskAt)}` : null
+    ]
+      .filter(Boolean)
+      .join(" · "),
+    accent: item.activeRiskSignalsCount > 0 ? ("danger" as MetricAccent) : ("warning" as MetricAccent)
+  }))
+);
+
 const sourcePublicationItems = computed(() =>
   [...(summary.value?.sourceHealth ?? [])]
     .sort((left, right) => right.publicationRate - left.publicationRate)
@@ -227,8 +258,12 @@ const supplierCards = computed(() => {
   }
 
   const topSupplier = summary.value.supplierExposure[0];
-  const averagePublicationGap = Math.max(0, 100 - summary.value.publicationEfficiency);
+  const topCustomer = summary.value.customerExposure[0];
   const trackedSuppliers = summary.value.supplierExposure.reduce(
+    (sum, item) => sum + item.procurementCount,
+    0
+  );
+  const trackedCustomers = summary.value.customerExposure.reduce(
     (sum, item) => sum + item.procurementCount,
     0
   );
@@ -240,29 +275,29 @@ const supplierCards = computed(() => {
       hint: topSupplier ? topSupplier.supplier : "Пока нет связанных поставщиков"
     },
     {
-      label: "Поставщиков в топе",
+      label: "Ключевой заказчик",
+      value: topCustomer ? formatPercent(topCustomer.sharePercent) : "0%",
+      hint: topCustomer ? topCustomer.customer : "Пока нет связок с заказчиками"
+    },
+    {
+      label: "Поставщиков в срезе",
       value: formatNumber(summary.value.supplierExposure.length),
       hint: `Покрыто закупок: ${formatNumber(trackedSuppliers)}`
     },
     {
-      label: "Источники под риском",
-      value: formatNumber(summary.value.atRiskSources),
-      hint: "Критичные и наблюдаемые источники вместе"
+      label: "Заказчиков в срезе",
+      value: formatNumber(summary.value.customerExposure.length),
+      hint: `Покрыто закупок: ${formatNumber(trackedCustomers)}`
     },
     {
-      label: "Провал публикации",
-      value: formatPercent(averagePublicationGap),
-      hint: "Насколько поток далёк от идеальной публикации"
-    },
-    {
-      label: "Успешность запусков",
-      value: formatPercent(summary.value.runSuccessRate),
-      hint: "Только за последние 30 дней"
+      label: "Поставщики под наблюдением",
+      value: formatNumber(summary.value.supplierRiskWatchlist.length),
+      hint: "В watchlist попадают компании с накопленными риск-сигналами"
     },
     {
       label: "Риск-сигналы 30д",
       value: formatNumber(summary.value.riskSignalsLast30d),
-      hint: "Фон для проверки поставщиков и источников"
+      hint: "Контур проверки добросовестности по контрагентам"
     }
   ];
 });
@@ -457,21 +492,6 @@ onMounted(() => {
     </template>
   </PageHeader>
 
-  <Card class="border-border/70">
-    <CardContent class="grid gap-3 p-4 md:grid-cols-3">
-      <NuxtLink
-        v-for="item in sectionTabs"
-        :key="item.id"
-        :to="item.href"
-        class="rounded-2xl border bg-muted/20 p-4 transition hover:border-primary/40 hover:bg-muted/30"
-        :class="item.id === props.sectionId ? 'border-primary bg-primary/5' : 'border-border/70'"
-      >
-        <p class="font-medium">{{ item.pageTitle }}</p>
-        <p class="mt-1 text-sm text-muted-foreground">{{ item.description }}</p>
-      </NuxtLink>
-    </CardContent>
-  </Card>
-
   <div v-if="analytics.loading.value" class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
     <Skeleton v-for="item in 6" :key="item" class="h-32 rounded-xl" />
   </div>
@@ -614,32 +634,32 @@ onMounted(() => {
       <Card class="overflow-hidden border-border/70 bg-gradient-to-br from-background via-background to-muted/25">
         <CardContent class="grid gap-6 p-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
           <div class="min-w-0 space-y-4">
-            <p class="text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">Поставщики и источники</p>
+            <p class="text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">Поставщики и заказчики</p>
             <div class="space-y-2">
-              <h2 class="text-2xl font-semibold tracking-tight">Здесь сводятся концентрация поставщиков и качество входящего потока</h2>
+              <h2 class="text-2xl font-semibold tracking-tight">Здесь собраны концентрация поставщиков, ключевые заказчики и сигналы добросовестности</h2>
               <p class="max-w-3xl text-sm leading-6 text-muted-foreground">
-                Эта страница отвечает на два вопроса сразу: не зависим ли поток от отдельных поставщиков и не ломается ли картина из-за просадки самих источников.
+                Здесь удобно смотреть, кто держит поток закупок со стороны поставщиков, какие заказчики формируют основную нагрузку и по каким компаниям уже накопились риск-сигналы.
               </p>
             </div>
           </div>
 
           <div class="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
             <div class="rounded-3xl border border-border/70 bg-background/80 p-4">
-              <p class="text-sm font-semibold">Смотри на лидера</p>
+              <p class="text-sm font-semibold">Смотри на концентрацию</p>
               <p class="mt-2 text-sm leading-6 text-muted-foreground">
-                Верхние поставщики показывают, где появляется опасная концентрация по числу закупок и по деньгам.
+                Верхние поставщики сразу показывают, где появляется опасная концентрация по числу закупок и по деньгам.
               </p>
             </div>
             <div class="rounded-3xl border border-border/70 bg-background/80 p-4">
-              <p class="text-sm font-semibold">Проверяй источники</p>
+              <p class="text-sm font-semibold">Держи заказчика рядом</p>
               <p class="mt-2 text-sm leading-6 text-muted-foreground">
-                Если падает публикация или растут ошибки, любые выводы по поставщикам нужно трактовать осторожно.
+                Заказчики помогают понять, кто реально формирует спрос и где у нас самые нагруженные контуры закупок.
               </p>
             </div>
             <div class="rounded-3xl border border-border/70 bg-background/80 p-4">
-              <p class="text-sm font-semibold">Держи риск-фон рядом</p>
+              <p class="text-sm font-semibold">Проверяй добросовестность</p>
               <p class="mt-2 text-sm leading-6 text-muted-foreground">
-                Риск-сигналы и уровень здоровья источников нужны как общий контекст для supplier-картины.
+                Watchlist по контрагентам помогает быстро увидеть поставщиков, которых уже стоит поднимать на ручную проверку.
               </p>
             </div>
           </div>
@@ -674,9 +694,26 @@ onMounted(() => {
 
         <Card class="min-w-0 overflow-hidden">
           <CardHeader>
-            <CardTitle>Бюджетная концентрация</CardTitle>
+            <CardTitle>Ключевые заказчики</CardTitle>
             <CardDescription>
-              Отдельный срез по суммам позволяет увидеть лидеров не только по количеству карточек, но и по деньгам.
+              Видно, какие заказчики формируют основную долю потока и на чьих закупках строится текущая картина.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <MetricBarList
+              :items="customerExposureItems"
+              empty-text="После накопления карточек с заказчиками здесь появится карта клиентского контура."
+            />
+          </CardContent>
+        </Card>
+      </div>
+
+      <div class="grid gap-4 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+        <Card class="min-w-0 overflow-hidden">
+          <CardHeader>
+            <CardTitle>Бюджетная концентрация поставщиков</CardTitle>
+            <CardDescription>
+              Отдельный срез по суммам показывает лидеров не только по количеству карточек, но и по бюджету.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -686,83 +723,35 @@ onMounted(() => {
             />
           </CardContent>
         </Card>
-      </div>
-
-      <div class="grid gap-4 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-        <Card class="min-w-0 overflow-hidden">
-          <CardHeader>
-            <CardTitle>Распределение риска по источникам</CardTitle>
-            <CardDescription>
-              Быстрый взгляд на то, сколько у нас критичных, наблюдаемых и стабильных источников в текущем окне.
-            </CardDescription>
-          </CardHeader>
-          <CardContent class="space-y-6">
-            <MetricStackBar :segments="sourceRiskSegments" />
-            <MetricBarList :items="riskSourceItems" />
-          </CardContent>
-        </Card>
 
         <Card class="min-w-0 overflow-hidden">
           <CardHeader>
-            <CardTitle>Публикация по источникам</CardTitle>
+            <CardTitle>Заказчики по бюджету</CardTitle>
             <CardDescription>
-              Колонны показывают не просто статус, а реальную публикационную отдачу каждого канала.
+              Денежный разрез помогает увидеть, кто выступает крупнейшим заказчиком не по частоте, а по объёму.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <MetricColumnChart :items="sourcePublicationItems" />
+            <MetricBarList
+              :items="customerAmountItems"
+              empty-text="После накопления сумм по заказчикам здесь появится бюджетный срез."
+            />
           </CardContent>
         </Card>
       </div>
 
       <Card class="min-w-0 overflow-hidden">
         <CardHeader>
-          <CardTitle>Здоровье источников</CardTitle>
+          <CardTitle>Недобросовестные и проблемные поставщики</CardTitle>
           <CardDescription>
-            Детальная расшифровка после графиков: риск, success rate, publication rate и давность последнего запуска.
+            Список поставщиков, по которым уже накопились риск-сигналы и которые стоит проверять при работе с текущим потоком закупок.
           </CardDescription>
         </CardHeader>
-        <CardContent class="px-0">
-          <Table class="min-w-[760px]">
-            <TableHeader>
-              <TableRow>
-                <TableHead>Источник</TableHead>
-                <TableHead>Риск</TableHead>
-                <TableHead>Успех</TableHead>
-                <TableHead>Публикация</TableHead>
-                <TableHead>Ошибки</TableHead>
-                <TableHead>Последний запуск</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <TableRow v-for="item in summary.sourceHealth" :key="item.source">
-                <TableCell class="max-w-[18rem]">
-                  <div class="min-w-0 space-y-1">
-                    <p class="break-words font-medium">{{ item.name }}</p>
-                    <p class="break-words text-sm text-muted-foreground">{{ item.source }}</p>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <Badge :variant="riskBadgeVariant(item.riskLevel)">{{ riskLabel(item.riskLevel) }}</Badge>
-                </TableCell>
-                <TableCell>{{ formatPercent(item.successRate) }}</TableCell>
-                <TableCell>{{ formatPercent(item.publicationRate) }}</TableCell>
-                <TableCell>{{ formatNumber(item.failedRuns) }}</TableCell>
-                <TableCell>
-                  <div class="space-y-1">
-                    <p>{{ formatDateTime(item.lastRunAt) }}</p>
-                    <p class="text-sm text-muted-foreground">
-                      {{
-                        item.hoursSinceLastRun === null || item.hoursSinceLastRun === undefined
-                          ? "Запусков не было"
-                          : `${formatNumber(item.hoursSinceLastRun)} ч назад`
-                      }}
-                    </p>
-                  </div>
-                </TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
+        <CardContent>
+          <MetricBarList
+            :items="supplierRiskWatchItems"
+            empty-text="Когда по поставщикам накопятся риск-сигналы, здесь появится watchlist для ручной проверки."
+          />
         </CardContent>
       </Card>
     </template>

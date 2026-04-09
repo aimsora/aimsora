@@ -178,6 +178,21 @@ export const ANALYTICS_QUERY = gql`
         totalAmount
         sharePercent
       }
+      customerExposure {
+        customer
+        procurementCount
+        totalAmount
+        sharePercent
+      }
+      supplierRiskWatchlist {
+        supplier
+        taxId
+        ogrn
+        riskSignalsCount
+        activeRiskSignalsCount
+        activeProcurements
+        latestRiskAt
+      }
       nppMonthlyDynamics {
         label
         procurementCount

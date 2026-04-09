@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import {
   Activity,
-  BarChart3,
+  Atom,
+  Database,
   FileBarChart2,
   FileSearch,
+  Handshake,
+  History,
   LayoutDashboard,
   PlaySquare,
-  Radar,
+  Settings2,
   UserCog
 } from "lucide-vue-next";
 import type { Component } from "vue";
@@ -21,17 +24,18 @@ const sidebar = useSidebar();
 
 const icons: Record<string, Component> = {
   "/analytics/overview": Activity,
-  "/analytics/suppliers": Activity,
-  "/analytics/npp": Activity,
+  "/analytics/suppliers": Handshake,
+  "/analytics/npp": Atom,
   "/dashboard": LayoutDashboard,
-  "/jobs": Radar,
-  "/parser-runs": Radar,
+  "/jobs": PlaySquare,
+  "/parser-runs": History,
   "/procurements": FileSearch,
   "/reports/suppliers": FileBarChart2,
   "/reports/niches": FileBarChart2,
   "/reports/aes": FileBarChart2,
   "/reports/parsers": FileBarChart2,
-  "/sources": BarChart3,
+  "/sources": Database,
+  "/admin/parsers": Settings2,
   "/users": UserCog
 };
 
