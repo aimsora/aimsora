@@ -33,6 +33,9 @@ const schedulePresets = [
 ] as const;
 
 const overview = computed(() => scraperAdmin.overview.value);
+const normalizedSchedule = computed(() => schedule.value.trim());
+const scheduleParts = computed(() => normalizedSchedule.value.split(/\s+/).filter(Boolean));
+const isScheduleValid = computed(() => scheduleParts.value.length === 5);
 const sourceRows = computed(() =>
   [...(overview.value?.sources ?? [])].sort((left, right) => {
     if (left.isActive !== right.isActive) {
@@ -190,18 +193,34 @@ function availabilityLabel(item: AdminSourceRow) {
 }
 
 async function updateSource(sourceCode: string, isActive: boolean) {
-  await scraperAdmin.updateSourceState({ sourceCode, isActive });
+  try {
+    await scraperAdmin.updateSourceState({ sourceCode, isActive });
+  } catch {
+    // Ошибка уже показана toast-уведомлением в composable.
+  }
 }
 
 async function runSource(sourceCode: string) {
-  await scraperAdmin.runSource(sourceCode);
+  try {
+    await scraperAdmin.runSource(sourceCode);
+  } catch {
+    // Ошибка уже показана toast-уведомлением в composable.
+  }
 }
 
 async function saveConfig() {
-  await scraperAdmin.save({
-    schedule: schedule.value.trim(),
-    autoRunEnabled: autoRunEnabled.value
-  });
+  if (!isScheduleValid.value) {
+    return;
+  }
+
+  try {
+    await scraperAdmin.save({
+      schedule: normalizedSchedule.value,
+      autoRunEnabled: autoRunEnabled.value
+    });
+  } catch {
+    // Ошибка уже показана toast-уведомлением в composable.
+  }
 }
 
 onMounted(() => {
@@ -263,11 +282,14 @@ onMounted(() => {
             Управление расписанием и автозапуском доступно только администратору системы.
           </div>
 
-          <div class="grid gap-3">
+          <div class="grid gap-2">
             <Label for="scrape-schedule">Cron-выражение</Label>
             <Input id="scrape-schedule" v-model="schedule" placeholder="*/20 * * * *" :disabled="!canManageScrapers" />
-            <p class="text-sm text-muted-foreground">
+            <p class="text-xs text-muted-foreground">
               Формат: `минуты часы день-месяца месяц день-недели`, например `*/10 * * * *`.
+            </p>
+            <p v-if="normalizedSchedule && !isScheduleValid" class="text-xs text-destructive">
+              Cron должен состоять из 5 частей.
             </p>
           </div>
 
@@ -301,7 +323,7 @@ onMounted(() => {
 
           <div class="flex flex-wrap items-center gap-3">
             <Button
-              :disabled="!canManageScrapers || scraperAdmin.saveLoading.value || schedule.trim().length < 5"
+              :disabled="!canManageScrapers || scraperAdmin.saveLoading.value || !isScheduleValid"
               @click="saveConfig()"
             >
               {{ scraperAdmin.saveLoading.value ? "Сохранение..." : "Сохранить настройки" }}
@@ -385,9 +407,7 @@ onMounted(() => {
     <Card>
       <CardHeader>
         <CardTitle>Источники и управление сбором</CardTitle>
-        <CardDescription>
-          Здесь администратор включает и выключает источники из контура, запускает их вручную и сразу видит, почему конкретный источник требует внимания.
-        </CardDescription>
+        <CardDescription>Компактное управление источниками без горизонтальной прокрутки таблицы.</CardDescription>
       </CardHeader>
       <CardContent class="space-y-4">
         <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -415,104 +435,97 @@ onMounted(() => {
           description="Попробуйте изменить фильтр или строку поиска."
         />
       </CardContent>
-      <CardContent v-else class="px-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Источник</TableHead>
-              <TableHead>Состояние</TableHead>
-              <TableHead>Надёжность</TableHead>
-              <TableHead>Последний запуск</TableHead>
-              <TableHead>Показатели</TableHead>
-              <TableHead class="text-right">Действия</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="item in filteredSourceRows" :key="item.sourceCode">
-              <TableCell>
-                <div class="space-y-1">
-                  <p class="font-medium">{{ item.sourceName }}</p>
-                  <p class="text-sm text-muted-foreground">{{ item.sourceCode }}</p>
-                </div>
-              </TableCell>
-              <TableCell>
-                <div class="space-y-2">
-                  <div class="flex flex-wrap gap-2">
-                    <Badge :variant="sourceStateVariant(item)">{{ sourceStateLabel(item) }}</Badge>
-                    <Badge :variant="availabilityVariant(item)">{{ availabilityLabel(item) }}</Badge>
-                    <Badge v-if="item.circuitOpen" variant="destructive">Circuit breaker</Badge>
-                  </div>
-                  <p class="max-w-sm break-words text-sm text-muted-foreground">{{ item.attentionReason }}</p>
-                </div>
-              </TableCell>
-              <TableCell>
-                <div class="space-y-2">
-                  <Badge :variant="riskBadgeVariant(item.riskLevel)">{{ riskLabel(item.riskLevel) }}</Badge>
-                  <div class="flex flex-wrap gap-2">
-                    <Badge v-if="item.lastRunStatus" :variant="badgeVariant(item.lastRunStatus)">
-                      {{ formatEnumLabel(item.lastRunStatus) }}
-                    </Badge>
-                  </div>
-                </div>
-              </TableCell>
-              <TableCell>
-                <div class="space-y-1">
-                  <p>{{ formatDateTime(item.lastRunAt) }}</p>
-                  <p class="break-words text-sm text-muted-foreground">
-                    {{ item.lastErrorMessage || `Последний успех: ${formatDateTime(item.lastSuccessAt)}` }}
-                  </p>
-                </div>
-              </TableCell>
-              <TableCell>
-                <div class="space-y-1 text-sm">
-                  <p>Успех: <span class="font-medium text-foreground">{{ formatPercent(item.successRate) }}</span></p>
-                  <p>Публикация: <span class="font-medium text-foreground">{{ formatPercent(item.publicationRate) }}</span></p>
-                  <p class="text-muted-foreground">
-                    Сбоев: {{ formatNumber(item.failedRuns) }}
-                    <span v-if="item.hoursSinceLastRun !== null"> · {{ formatNumber(item.hoursSinceLastRun) }} ч с последнего запуска</span>
-                  </p>
-                </div>
-              </TableCell>
-              <TableCell class="text-right">
-                <div class="flex flex-col items-end gap-3">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    :disabled="
-                      !overview.runtime.reachable ||
-                      !item.isLoaded ||
-                      !item.isActive ||
-                      item.isRunning ||
-                      scraperAdmin.isSourceRunning(item.sourceCode)
-                    "
-                    @click="runSource(item.sourceCode)"
-                  >
-                    {{
-                      scraperAdmin.isSourceRunning(item.sourceCode)
-                        ? "Запуск..."
-                        : item.isRunning
-                          ? "Уже выполняется"
-                          : "Запустить сейчас"
-                    }}
-                  </Button>
-                  <div class="flex items-center gap-3">
-                    <span class="text-sm text-muted-foreground">В сборе</span>
-                    <Switch
-                      :checked="item.isActive"
-                      :disabled="
-                        !canManageScrapers ||
-                        !overview.runtime.reachable ||
-                        !item.isLoaded ||
-                        scraperAdmin.isSourceUpdating(item.sourceCode)
-                      "
-                      @update:checked="updateSource(item.sourceCode, Boolean($event))"
-                    />
-                  </div>
-                </div>
-              </TableCell>
-            </TableRow>
-          </TableBody>
-        </Table>
+      <CardContent v-else>
+        <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <article
+            v-for="item in filteredSourceRows"
+            :key="item.sourceCode"
+            class="flex min-h-full flex-col gap-3 rounded-lg border bg-muted/10 p-3"
+          >
+            <div class="flex items-start justify-between gap-3">
+              <div class="min-w-0 space-y-1">
+                <p class="truncate font-medium">{{ item.sourceName }}</p>
+                <p class="text-xs text-muted-foreground">{{ item.sourceCode }}</p>
+              </div>
+              <Badge :variant="sourceStateVariant(item)" class="shrink-0">{{ sourceStateLabel(item) }}</Badge>
+            </div>
+
+            <div class="flex flex-wrap gap-2">
+              <Badge :variant="availabilityVariant(item)">{{ availabilityLabel(item) }}</Badge>
+              <Badge :variant="riskBadgeVariant(item.riskLevel)">{{ riskLabel(item.riskLevel) }}</Badge>
+              <Badge v-if="item.lastRunStatus" :variant="badgeVariant(item.lastRunStatus)">
+                {{ formatEnumLabel(item.lastRunStatus) }}
+              </Badge>
+              <Badge v-if="item.circuitOpen" variant="destructive">Circuit breaker</Badge>
+            </div>
+
+            <p class="min-h-5 break-words text-xs text-muted-foreground">{{ item.attentionReason }}</p>
+
+            <div class="grid gap-2 rounded-md bg-background/70 p-2 text-xs">
+              <div class="flex justify-between gap-3">
+                <span class="text-muted-foreground">Последний запуск</span>
+                <span class="text-right font-medium">{{ formatDateTime(item.lastRunAt) }}</span>
+              </div>
+              <div class="flex justify-between gap-3">
+                <span class="text-muted-foreground">Успех</span>
+                <span class="font-medium">{{ formatPercent(item.successRate) }}</span>
+              </div>
+              <div class="flex justify-between gap-3">
+                <span class="text-muted-foreground">Публикация</span>
+                <span class="font-medium">{{ formatPercent(item.publicationRate) }}</span>
+              </div>
+              <div class="flex justify-between gap-3">
+                <span class="text-muted-foreground">Сбоев</span>
+                <span class="font-medium">{{ formatNumber(item.failedRuns) }}</span>
+              </div>
+            </div>
+
+            <p v-if="item.lastErrorMessage" class="line-clamp-2 break-words text-xs text-destructive">
+              {{ item.lastErrorMessage }}
+            </p>
+            <p v-else class="text-xs text-muted-foreground">
+              Последний успех: {{ formatDateTime(item.lastSuccessAt) }}
+            </p>
+
+            <div class="mt-auto flex items-center justify-between gap-3 border-t pt-3">
+              <div class="flex items-center gap-2">
+                <Switch
+                  :checked="item.isActive"
+                  :disabled="
+                    !canManageScrapers ||
+                    !overview.runtime.reachable ||
+                    !item.isLoaded ||
+                    scraperAdmin.isSourceUpdating(item.sourceCode)
+                  "
+                  @update:checked="updateSource(item.sourceCode, Boolean($event))"
+                />
+                <span class="text-sm text-muted-foreground">
+                  {{ scraperAdmin.isSourceUpdating(item.sourceCode) ? "Сохраняю..." : "В сборе" }}
+                </span>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                :disabled="
+                  !overview.runtime.reachable ||
+                  !item.isLoaded ||
+                  !item.isActive ||
+                  item.isRunning ||
+                  scraperAdmin.isSourceRunning(item.sourceCode)
+                "
+                @click="runSource(item.sourceCode)"
+              >
+                {{
+                  scraperAdmin.isSourceRunning(item.sourceCode)
+                    ? "Запуск..."
+                    : item.isRunning
+                      ? "Идёт"
+                      : "Запустить"
+                }}
+              </Button>
+            </div>
+          </article>
+        </div>
       </CardContent>
     </Card>
   </template>

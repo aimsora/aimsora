@@ -9,10 +9,10 @@ const description = computed(() =>
 
 <template>
   <header class="sticky top-0 z-30 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/70">
-    <div class="container flex h-16 items-center justify-between gap-4">
+    <div class="container flex h-12 items-center justify-between gap-3">
       <div class="min-w-0">
         <p class="truncate text-sm font-semibold">{{ title }}</p>
-        <p class="hidden truncate text-sm text-muted-foreground md:block">
+        <p class="hidden truncate text-xs text-muted-foreground xl:block">
           {{ description }}
         </p>
       </div>

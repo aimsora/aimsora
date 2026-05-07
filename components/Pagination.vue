@@ -45,7 +45,7 @@ const pages = computed<(number | string)[]>(() => {
 </script>
 
 <template>
-  <div class="flex flex-col gap-3 border-t px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+  <div class="flex flex-col gap-3 border-t px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
     <p class="min-w-0 text-sm text-muted-foreground">
       Страница {{ page }} из {{ pageCount }}
     </p>
