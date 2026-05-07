@@ -3,7 +3,7 @@ import { cn } from "~/utils/cn";
 </script>
 
 <template>
-  <div :class="cn('p-6 pt-0', $attrs.class as string)">
+  <div :class="cn('p-4 pt-0', $attrs.class as string)">
     <slot />
   </div>
 </template>

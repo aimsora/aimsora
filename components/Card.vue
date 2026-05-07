@@ -11,7 +11,7 @@ withDefaults(defineProps<PrimitiveProps>(), {
   <Primitive
     :as="as"
     :as-child="asChild"
-    :class="cn('rounded-xl border bg-card text-card-foreground shadow-sm', $attrs.class as string)"
+    :class="cn('rounded-lg border bg-card text-card-foreground shadow-sm', $attrs.class as string)"
   >
     <slot />
   </Primitive>

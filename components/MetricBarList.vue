@@ -45,15 +45,15 @@ function accentClass(accent?: MetricBarItem["accent"]) {
 </script>
 
 <template>
-  <div v-if="items.length === 0" class="rounded-2xl border border-dashed bg-muted/10 p-4 text-sm text-muted-foreground">
+  <div v-if="items.length === 0" class="rounded-lg border border-dashed bg-muted/10 p-3 text-sm text-muted-foreground">
     {{ emptyText }}
   </div>
 
-  <div v-else class="space-y-4">
+  <div v-else class="space-y-3">
     <div
       v-for="item in items"
       :key="item.label"
-      class="space-y-2"
+      class="space-y-1.5"
     >
       <div class="flex items-start justify-between gap-3">
         <div class="min-w-0">
@@ -65,9 +65,9 @@ function accentClass(accent?: MetricBarItem["accent"]) {
         </p>
       </div>
 
-      <div class="h-2.5 rounded-full bg-muted/70">
+      <div class="h-2 rounded-full bg-muted/70">
         <div
-          class="h-2.5 rounded-full transition-[width]"
+          class="h-2 rounded-full transition-[width]"
           :class="accentClass(item.accent)"
           :style="{ width: widthPercent(item.value) }"
         />

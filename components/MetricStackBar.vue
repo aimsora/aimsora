@@ -48,12 +48,12 @@ function accentClass(accent?: MetricStackSegment["accent"]) {
 </script>
 
 <template>
-  <div v-if="segments.length === 0 || total === 0" class="rounded-2xl border border-dashed bg-muted/10 p-4 text-sm text-muted-foreground">
+  <div v-if="segments.length === 0 || total === 0" class="rounded-lg border border-dashed bg-muted/10 p-3 text-sm text-muted-foreground">
     {{ emptyText }}
   </div>
 
-  <div v-else class="space-y-4">
-    <div class="flex h-4 overflow-hidden rounded-full bg-muted/70">
+  <div v-else class="space-y-3">
+    <div class="flex h-3 overflow-hidden rounded-full bg-muted/70">
       <div
         v-for="segment in segments"
         :key="segment.label"
@@ -63,17 +63,17 @@ function accentClass(accent?: MetricStackSegment["accent"]) {
       />
     </div>
 
-    <div class="grid gap-3 sm:grid-cols-2">
+    <div class="grid gap-2 sm:grid-cols-2">
       <div
         v-for="segment in segments"
         :key="`${segment.label}-${segment.value}`"
-        class="rounded-2xl border bg-muted/15 p-3"
+        class="rounded-lg border bg-muted/15 p-2.5"
       >
         <div class="flex items-center gap-2">
           <span class="h-2.5 w-2.5 rounded-full" :class="accentClass(segment.accent)" />
           <p class="text-sm font-medium">{{ segment.label }}</p>
         </div>
-        <p class="mt-2 text-lg font-semibold">{{ segment.valueLabel ?? formatNumber(segment.value) }}</p>
+        <p class="mt-1 text-base font-semibold">{{ segment.valueLabel ?? formatNumber(segment.value) }}</p>
         <p class="text-xs text-muted-foreground">
           {{ formatPercent((segment.value / total) * 100) }} от текущего объёма
         </p>

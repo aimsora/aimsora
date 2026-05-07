@@ -8,10 +8,10 @@ defineProps<{
 
 <template>
   <Card>
-    <CardHeader class="space-y-3">
+    <CardHeader class="space-y-2">
       <CardDescription>{{ label }}</CardDescription>
-      <CardTitle class="text-3xl">{{ value }}</CardTitle>
-      <p class="text-sm text-muted-foreground">{{ hint }}</p>
+      <CardTitle class="text-2xl leading-tight">{{ value }}</CardTitle>
+      <p class="text-xs leading-5 text-muted-foreground">{{ hint }}</p>
     </CardHeader>
   </Card>
 </template>
