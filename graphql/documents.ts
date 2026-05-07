@@ -394,6 +394,7 @@ export const SCRAPER_ADMIN_OVERVIEW_QUERY = gql`
       config {
         schedule
         autoRunEnabled
+        enabledSources
         updatedAt
         source
       }
@@ -404,6 +405,7 @@ export const SCRAPER_ADMIN_OVERVIEW_QUERY = gql`
         running
         runningSources
         loadedSources
+        enabledSources
         circuitStates {
           sourceCode
           failures
@@ -415,6 +417,7 @@ export const SCRAPER_ADMIN_OVERVIEW_QUERY = gql`
         sourceCode
         sourceName
         isActive
+        isLoaded
         lastRunStatus
         lastRunAt
         lastSuccessAt
@@ -440,6 +443,19 @@ export const UPDATE_SCRAPER_ADMIN_CONFIG_MUTATION = gql`
     updateScraperAdminConfig(input: $input) {
       schedule
       autoRunEnabled
+      enabledSources
+      updatedAt
+      source
+    }
+  }
+`;
+
+export const UPDATE_SCRAPER_ADMIN_SOURCE_STATE_MUTATION = gql`
+  mutation UpdateScraperAdminSourceState($input: UpdateScraperAdminSourceStateInput!) {
+    updateScraperAdminSourceState(input: $input) {
+      schedule
+      autoRunEnabled
+      enabledSources
       updatedAt
       source
     }

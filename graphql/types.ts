@@ -148,6 +148,7 @@ export type CollectorTriggerResult = {
 export type ScraperAdminConfig = {
   schedule: string;
   autoRunEnabled: boolean;
+  enabledSources: string[];
   updatedAt: string;
   source: string;
 };
@@ -165,6 +166,7 @@ export type ScraperRuntimeState = {
   running: boolean;
   runningSources: string[];
   loadedSources: string[];
+  enabledSources: string[];
   circuitStates: ScraperRuntimeCircuitState[];
   message?: string | null;
 };
@@ -173,6 +175,7 @@ export type ScraperAdminSourceStatus = {
   sourceCode: string;
   sourceName: string;
   isActive: boolean;
+  isLoaded: boolean;
   lastRunStatus?: SourceRunStatus | null;
   lastRunAt?: string | null;
   lastSuccessAt?: string | null;

@@ -11,9 +11,18 @@ useHead({
 
 const auth = useAuthSession();
 const scraperAdmin = useScraperAdmin();
+type AdminSourceRow = NonNullable<typeof scraperAdmin.overview.value>["sources"][number];
 const schedule = ref("*/20 * * * *");
 const autoRunEnabled = ref(true);
+const search = ref("");
+const sourceFilter = ref<"all" | "active" | "disabled" | "attention">("all");
 const canManageScrapers = computed(() => auth.can("scraper-admin.manage"));
+const sourceFilterOptions = [
+  { label: "Все", value: "all" },
+  { label: "В сборе", value: "active" },
+  { label: "Отключённые", value: "disabled" },
+  { label: "Нужна проверка", value: "attention" }
+] as const;
 
 const schedulePresets = [
   { label: "Каждые 5 минут", value: "*/5 * * * *" },
@@ -26,6 +35,10 @@ const schedulePresets = [
 const overview = computed(() => scraperAdmin.overview.value);
 const sourceRows = computed(() =>
   [...(overview.value?.sources ?? [])].sort((left, right) => {
+    if (left.isActive !== right.isActive) {
+      return left.isActive ? -1 : 1;
+    }
+
     if (left.attentionRequired !== right.attentionRequired) {
       return left.attentionRequired ? -1 : 1;
     }
@@ -38,30 +51,63 @@ const sourceRows = computed(() =>
   })
 );
 
+const filteredSourceRows = computed(() =>
+  sourceRows.value.filter((item) => {
+    const normalizedSearch = search.value.trim().toLowerCase();
+    const matchesSearch =
+      normalizedSearch.length === 0 ||
+      item.sourceName.toLowerCase().includes(normalizedSearch) ||
+      item.sourceCode.toLowerCase().includes(normalizedSearch);
+
+    if (!matchesSearch) {
+      return false;
+    }
+
+    if (sourceFilter.value === "active") {
+      return item.isActive;
+    }
+
+    if (sourceFilter.value === "disabled") {
+      return !item.isActive;
+    }
+
+    if (sourceFilter.value === "attention") {
+      return item.attentionRequired;
+    }
+
+    return true;
+  })
+);
+
 const summaryCards = computed(() => {
   const sources = overview.value?.sources ?? [];
   const runtime = overview.value?.runtime;
 
   return [
     {
-      label: "Автозапуск",
-      value: runtime?.autoRunEnabled ? "Включён" : "Отключён",
-      hint: `Текущее расписание: ${runtime?.schedule ?? "нет данных"}`
+      label: "В сборе",
+      value: formatNumber(sources.filter((item) => item.isActive).length),
+      hint: "Источники, участвующие в плановом контуре"
     },
     {
-      label: "Проблемные источники",
+      label: "Отключены",
+      value: formatNumber(sources.filter((item) => !item.isActive).length),
+      hint: "Источники, которые администратор исключил из сбора"
+    },
+    {
+      label: "Требуют внимания",
       value: formatNumber(sources.filter((item) => item.attentionRequired).length),
-      hint: "Источники, требующие внимания администратора"
+      hint: "Активные источники с ошибками, зависанием или stale-состоянием"
+    },
+    {
+      label: "Загружены в runtime",
+      value: formatNumber(runtime?.loadedSources.length ?? 0),
+      hint: runtime?.reachable ? "Адаптеры, которые реально видит scraper-service" : "Runtime сейчас недоступен"
     },
     {
       label: "Сейчас выполняются",
       value: formatNumber(sources.filter((item) => item.isRunning).length),
-      hint: "Запущены прямо сейчас"
-    },
-    {
-      label: "Контур управления",
-      value: runtime?.reachable ? "Доступен" : "Недоступен",
-      hint: runtime?.reachable ? "scraper-service отвечает на control API" : runtime?.message || "Нет связи"
+      hint: runtime?.reachable ? "Прогоны, которые идут прямо сейчас" : runtime?.message || "Нет связи с runtime"
     }
   ];
 });
@@ -105,6 +151,50 @@ function riskLabel(level?: string | null) {
 
 function runtimeBadgeVariant() {
   return overview.value?.runtime.reachable ? ("success" as const) : ("destructive" as const);
+}
+
+function sourceStateVariant(item: AdminSourceRow) {
+  if (!item.isActive) {
+    return "secondary" as const;
+  }
+
+  if (item.attentionRequired) {
+    return "destructive" as const;
+  }
+
+  return "success" as const;
+}
+
+function sourceStateLabel(item: AdminSourceRow) {
+  if (!item.isActive) {
+    return "Отключён";
+  }
+
+  if (item.isRunning) {
+    return "Выполняется";
+  }
+
+  if (item.attentionRequired) {
+    return "Нужна проверка";
+  }
+
+  return "В сборе";
+}
+
+function availabilityVariant(item: AdminSourceRow) {
+  return item.isLoaded ? ("outline" as const) : ("warning" as const);
+}
+
+function availabilityLabel(item: AdminSourceRow) {
+  return item.isLoaded ? "Загружен в runtime" : "Нет в runtime";
+}
+
+async function updateSource(sourceCode: string, isActive: boolean) {
+  await scraperAdmin.updateSourceState({ sourceCode, isActive });
+}
+
+async function runSource(sourceCode: string) {
+  await scraperAdmin.runSource(sourceCode);
 }
 
 async function saveConfig() {
@@ -156,11 +246,11 @@ onMounted(() => {
     <div class="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
       <Card>
         <CardHeader>
-          <CardTitle>Расписание автозапуска</CardTitle>
+          <CardTitle>Расписание и режим</CardTitle>
           <CardDescription>
             {{
               canManageScrapers
-                ? "Изменения применяются сразу в scraper-service и сохраняются для следующего рестарта."
+                ? "Здесь меняется общий режим работы scraper-service. Управление отдельными источниками находится ниже."
                 : "Разработчик видит текущее расписание и runtime-состояние, но не меняет конфигурацию."
             }}
           </CardDescription>
@@ -228,9 +318,9 @@ onMounted(() => {
 
       <Card>
         <CardHeader>
-          <CardTitle>Runtime-состояние</CardTitle>
+          <CardTitle>Runtime scraper-service</CardTitle>
           <CardDescription>
-            Администратор видит не только данные БД, но и текущее состояние самого scraper-service.
+            Видно, что реально загружено в памяти сервиса, что включено в runtime и есть ли связь с control API.
           </CardDescription>
         </CardHeader>
         <CardContent class="space-y-4">
@@ -252,6 +342,10 @@ onMounted(() => {
             <div class="flex items-center justify-between">
               <span>Загруженные источники</span>
               <span class="font-medium text-foreground">{{ formatNumber(overview.runtime.loadedSources.length) }}</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span>Включены в runtime</span>
+              <span class="font-medium text-foreground">{{ formatNumber(overview.runtime.enabledSources.length) }}</span>
             </div>
             <div class="flex items-center justify-between">
               <span>Запущены сейчас</span>
@@ -290,15 +384,35 @@ onMounted(() => {
 
     <Card>
       <CardHeader>
-        <CardTitle>Здоровье парсеров</CardTitle>
+        <CardTitle>Источники и управление сбором</CardTitle>
         <CardDescription>
-          Здесь сразу видно, какой парсер реально не работает, завис, попал в circuit breaker или давно не давал свежих данных.
+          Здесь администратор включает и выключает источники из контура, запускает их вручную и сразу видит, почему конкретный источник требует внимания.
         </CardDescription>
       </CardHeader>
-      <CardContent v-if="sourceRows.length === 0">
+      <CardContent class="space-y-4">
+        <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div class="flex flex-wrap gap-2">
+            <Button
+              v-for="item in sourceFilterOptions"
+              :key="item.value"
+              :variant="sourceFilter === item.value ? 'default' : 'outline'"
+              size="sm"
+              @click="sourceFilter = item.value"
+            >
+              {{ item.label }}
+            </Button>
+          </div>
+          <Input
+            v-model="search"
+            class="w-full lg:max-w-sm"
+            placeholder="Поиск по коду или названию источника"
+          />
+        </div>
+      </CardContent>
+      <CardContent v-if="filteredSourceRows.length === 0">
         <EmptyState
           title="Источники не найдены"
-          description="Когда будут подключены парсеры, здесь появится административный мониторинг."
+          description="Попробуйте изменить фильтр или строку поиска."
         />
       </CardContent>
       <CardContent v-else class="px-0">
@@ -306,16 +420,15 @@ onMounted(() => {
           <TableHeader>
             <TableRow>
               <TableHead>Источник</TableHead>
-              <TableHead>Внимание</TableHead>
-              <TableHead>Риск</TableHead>
+              <TableHead>Состояние</TableHead>
+              <TableHead>Надёжность</TableHead>
               <TableHead>Последний запуск</TableHead>
-              <TableHead>Последний успех</TableHead>
-              <TableHead>Успех</TableHead>
-              <TableHead>Публикация</TableHead>
+              <TableHead>Показатели</TableHead>
+              <TableHead class="text-right">Действия</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            <TableRow v-for="item in sourceRows" :key="item.sourceCode">
+            <TableRow v-for="item in filteredSourceRows" :key="item.sourceCode">
               <TableCell>
                 <div class="space-y-1">
                   <p class="font-medium">{{ item.sourceName }}</p>
@@ -324,18 +437,18 @@ onMounted(() => {
               </TableCell>
               <TableCell>
                 <div class="space-y-2">
-                  <Badge :variant="item.attentionRequired ? 'destructive' : 'success'">
-                    {{ item.attentionRequired ? "Требует внимания" : "Норма" }}
-                  </Badge>
-                  <p class="max-w-xs break-words text-sm text-muted-foreground">{{ item.attentionReason }}</p>
+                  <div class="flex flex-wrap gap-2">
+                    <Badge :variant="sourceStateVariant(item)">{{ sourceStateLabel(item) }}</Badge>
+                    <Badge :variant="availabilityVariant(item)">{{ availabilityLabel(item) }}</Badge>
+                    <Badge v-if="item.circuitOpen" variant="destructive">Circuit breaker</Badge>
+                  </div>
+                  <p class="max-w-sm break-words text-sm text-muted-foreground">{{ item.attentionReason }}</p>
                 </div>
               </TableCell>
               <TableCell>
                 <div class="space-y-2">
                   <Badge :variant="riskBadgeVariant(item.riskLevel)">{{ riskLabel(item.riskLevel) }}</Badge>
                   <div class="flex flex-wrap gap-2">
-                    <Badge v-if="item.isRunning" variant="warning">Выполняется</Badge>
-                    <Badge v-if="item.circuitOpen" variant="destructive">Circuit breaker</Badge>
                     <Badge v-if="item.lastRunStatus" :variant="badgeVariant(item.lastRunStatus)">
                       {{ formatEnumLabel(item.lastRunStatus) }}
                     </Badge>
@@ -346,13 +459,57 @@ onMounted(() => {
                 <div class="space-y-1">
                   <p>{{ formatDateTime(item.lastRunAt) }}</p>
                   <p class="break-words text-sm text-muted-foreground">
-                    {{ item.lastErrorMessage || `Сбоев: ${formatNumber(item.failedRuns)}` }}
+                    {{ item.lastErrorMessage || `Последний успех: ${formatDateTime(item.lastSuccessAt)}` }}
                   </p>
                 </div>
               </TableCell>
-              <TableCell>{{ formatDateTime(item.lastSuccessAt) }}</TableCell>
-              <TableCell>{{ formatPercent(item.successRate) }}</TableCell>
-              <TableCell>{{ formatPercent(item.publicationRate) }}</TableCell>
+              <TableCell>
+                <div class="space-y-1 text-sm">
+                  <p>Успех: <span class="font-medium text-foreground">{{ formatPercent(item.successRate) }}</span></p>
+                  <p>Публикация: <span class="font-medium text-foreground">{{ formatPercent(item.publicationRate) }}</span></p>
+                  <p class="text-muted-foreground">
+                    Сбоев: {{ formatNumber(item.failedRuns) }}
+                    <span v-if="item.hoursSinceLastRun !== null"> · {{ formatNumber(item.hoursSinceLastRun) }} ч с последнего запуска</span>
+                  </p>
+                </div>
+              </TableCell>
+              <TableCell class="text-right">
+                <div class="flex flex-col items-end gap-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    :disabled="
+                      !overview.runtime.reachable ||
+                      !item.isLoaded ||
+                      !item.isActive ||
+                      item.isRunning ||
+                      scraperAdmin.isSourceRunning(item.sourceCode)
+                    "
+                    @click="runSource(item.sourceCode)"
+                  >
+                    {{
+                      scraperAdmin.isSourceRunning(item.sourceCode)
+                        ? "Запуск..."
+                        : item.isRunning
+                          ? "Уже выполняется"
+                          : "Запустить сейчас"
+                    }}
+                  </Button>
+                  <div class="flex items-center gap-3">
+                    <span class="text-sm text-muted-foreground">В сборе</span>
+                    <Switch
+                      :checked="item.isActive"
+                      :disabled="
+                        !canManageScrapers ||
+                        !overview.runtime.reachable ||
+                        !item.isLoaded ||
+                        scraperAdmin.isSourceUpdating(item.sourceCode)
+                      "
+                      @update:checked="updateSource(item.sourceCode, Boolean($event))"
+                    />
+                  </div>
+                </div>
+              </TableCell>
             </TableRow>
           </TableBody>
         </Table>
