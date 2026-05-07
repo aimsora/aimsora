@@ -1064,9 +1064,6 @@ watchEffect(() => {
       <Card v-if="hasSupplierDueDiligence">
         <CardHeader>
           <CardTitle>Проверка поставщиков</CardTitle>
-          <CardDescription>
-            Отдельная витрина по благонадёжности: закупочная активность, реквизиты, риск-сигналы и РНП.
-          </CardDescription>
         </CardHeader>
         <CardContent class="px-0">
           <Table>

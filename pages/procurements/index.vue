@@ -46,25 +46,6 @@ const statusOptions = [
   { label: "В архиве", value: "ARCHIVED" }
 ];
 
-const listGuide = [
-  {
-    title: "Фильтры задают срез",
-    text: "Сначала определи источник и статус, а затем уже смотри таблицу. Так реестр читается намного быстрее."
-  },
-  {
-    title: "Диаграммы выше таблицы показывают текущую выборку",
-    text: "Они не заменяют реестр, а помогают быстро увидеть перекос по статусам и источникам до детального просмотра строк."
-  },
-  {
-    title: "Таблица нужна для перехода в карточку",
-    text: "Если в диаграммах видно необычный перекос, уже из таблицы можно открыть конкретную закупку и проверить её детали."
-  },
-  {
-    title: "Фильтр Цель АЭС работает отдельно",
-    text: "Он не подменяет юридического заказчика, а выделяет станцию назначения из самой закупки ЕИС."
-  }
-];
-
 const currentPageStatusSegments = computed(() => {
   const counters = new Map<string, number>();
 
@@ -162,7 +143,6 @@ onMounted(async () => {
 <template>
   <PageHeader
     title="Закупки"
-    description="Реестр теперь разделён на три слоя: контекст выборки, быстрые диаграммы и только потом детальная таблица."
   >
     <template #actions>
       <Button variant="secondary" :disabled="procurements.loading.value" @click="procurements.load()">
@@ -170,30 +150,6 @@ onMounted(async () => {
       </Button>
     </template>
   </PageHeader>
-
-  <Card class="overflow-hidden border-border/70 bg-gradient-to-br from-background via-background to-muted/20">
-    <CardContent class="grid gap-6 p-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
-      <div class="min-w-0 space-y-3">
-        <p class="text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">Навигация по реестру</p>
-        <h2 class="text-2xl font-semibold tracking-tight">Сначала пойми выборку, потом открывай строки</h2>
-        <p class="max-w-3xl text-sm leading-6 text-muted-foreground">
-          Верхние блоки помогают быстро увидеть, что именно попало в реестр после фильтров:
-          сколько активных закупок осталось, какие источники доминируют и насколько свежие данные лежат на странице.
-        </p>
-      </div>
-
-      <div class="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
-        <div
-          v-for="item in listGuide"
-          :key="item.title"
-          class="min-w-0 rounded-3xl border border-border/70 bg-background/80 p-4"
-        >
-          <p class="text-sm font-semibold">{{ item.title }}</p>
-          <p class="mt-2 text-sm leading-6 text-muted-foreground">{{ item.text }}</p>
-        </div>
-      </div>
-    </CardContent>
-  </Card>
 
   <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
     <StatCard
@@ -311,9 +267,6 @@ onMounted(async () => {
       <Card class="min-w-0 overflow-hidden">
         <CardHeader>
           <CardTitle>Статусы в текущей выборке</CardTitle>
-          <CardDescription>
-            Помогает понять, ты сейчас смотришь на живой активный поток или на архивный и закрытый срез.
-          </CardDescription>
         </CardHeader>
         <CardContent>
           <MetricStackBar
@@ -326,9 +279,6 @@ onMounted(async () => {
       <Card class="min-w-0 overflow-hidden">
         <CardHeader>
           <CardTitle>Источники на текущей странице</CardTitle>
-          <CardDescription>
-            Быстрый визуальный слой по тому, какие каналы формируют текущую страницу реестра после фильтрации.
-          </CardDescription>
         </CardHeader>
         <CardContent>
           <MetricBarList

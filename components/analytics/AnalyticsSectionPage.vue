@@ -524,41 +524,6 @@ onMounted(() => {
 
   <template v-else-if="summary">
     <template v-if="props.sectionId === 'overview'">
-      <Card class="overflow-hidden border-border/70 bg-gradient-to-br from-background via-background to-muted/25">
-        <CardContent class="grid gap-6 p-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
-          <div class="min-w-0 space-y-4">
-            <p class="text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">Общий поток</p>
-            <div class="space-y-2">
-              <h2 class="text-2xl font-semibold tracking-tight">Операционный обзор дедлайнов, приоритетов и закупок под вниманием</h2>
-              <p class="max-w-3xl text-sm leading-6 text-muted-foreground">
-                Этот экран собран как главная панель для ежедневного мониторинга: где горят сроки, какой объём идёт в high-value и какие закупки надо открыть прямо сейчас.
-              </p>
-            </div>
-          </div>
-
-          <div class="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
-            <div class="rounded-3xl border border-border/70 bg-background/80 p-4">
-              <p class="text-sm font-semibold">Сначала смотри сроки</p>
-              <p class="mt-2 text-sm leading-6 text-muted-foreground">
-                Вверху видно, где поток уже проседает по дедлайнам и сколько закупок попадает в быструю реакцию.
-              </p>
-            </div>
-            <div class="rounded-3xl border border-border/70 bg-background/80 p-4">
-              <p class="text-sm font-semibold">Потом сверяй объём</p>
-              <p class="mt-2 text-sm leading-6 text-muted-foreground">
-                Отдельно вынесены high-value записи и средний чек, чтобы отличать массовый шум от реально дорогих лотов.
-              </p>
-            </div>
-            <div class="rounded-3xl border border-border/70 bg-background/80 p-4">
-              <p class="text-sm font-semibold">И только потом открывай карточки</p>
-              <p class="mt-2 text-sm leading-6 text-muted-foreground">
-                Таблица внизу уже про конкретные закупки, которые логично разбирать после общей картинки.
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
       <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <StatCard
           v-for="card in overviewCards"
@@ -573,9 +538,6 @@ onMounted(() => {
         <Card class="min-w-0 overflow-hidden">
           <CardHeader>
             <CardTitle>Давление по дедлайнам</CardTitle>
-            <CardDescription>
-              Диаграмма показывает, где скапливаются активные закупки: в безопасной зоне, на подходе к дедлайну или уже после срока.
-            </CardDescription>
           </CardHeader>
           <CardContent class="space-y-5">
             <MetricColumnChart :items="deadlinePressureItems" />
@@ -594,9 +556,6 @@ onMounted(() => {
         <Card class="min-w-0 overflow-hidden">
           <CardHeader>
             <CardTitle>Приоритеты потока</CardTitle>
-            <CardDescription>
-              Укрупнённое распределение показывает, что именно сейчас формирует основное давление на команду.
-            </CardDescription>
           </CardHeader>
           <CardContent class="space-y-6">
             <MetricStackBar :segments="attentionSegments" />
@@ -608,9 +567,6 @@ onMounted(() => {
       <Card>
         <CardHeader>
           <CardTitle>Закупки под вниманием</CardTitle>
-          <CardDescription>
-            Список для быстрого перехода в карточки после того, как понятна общая структура риска и дедлайнов.
-          </CardDescription>
         </CardHeader>
         <CardContent v-if="summary.attentionProcurements.length === 0">
           <EmptyState
@@ -650,41 +606,6 @@ onMounted(() => {
     </template>
 
     <template v-else-if="props.sectionId === 'suppliers'">
-      <Card class="overflow-hidden border-border/70 bg-gradient-to-br from-background via-background to-muted/25">
-        <CardContent class="grid gap-6 p-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
-          <div class="min-w-0 space-y-4">
-            <p class="text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">Поставщики и заказчики</p>
-            <div class="space-y-2">
-              <h2 class="text-2xl font-semibold tracking-tight">Здесь собраны концентрация поставщиков, ключевые заказчики и сигналы добросовестности</h2>
-              <p class="max-w-3xl text-sm leading-6 text-muted-foreground">
-                Здесь удобно смотреть, кто держит поток закупок со стороны поставщиков, какие заказчики формируют основную нагрузку и по каким компаниям уже накопились риск-сигналы.
-              </p>
-            </div>
-          </div>
-
-          <div class="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
-            <div class="rounded-3xl border border-border/70 bg-background/80 p-4">
-              <p class="text-sm font-semibold">Смотри на концентрацию</p>
-              <p class="mt-2 text-sm leading-6 text-muted-foreground">
-                Верхние поставщики сразу показывают, где появляется опасная концентрация по числу закупок и по деньгам.
-              </p>
-            </div>
-            <div class="rounded-3xl border border-border/70 bg-background/80 p-4">
-              <p class="text-sm font-semibold">Держи заказчика рядом</p>
-              <p class="mt-2 text-sm leading-6 text-muted-foreground">
-                Заказчики помогают понять, кто реально формирует спрос и где у нас самые нагруженные контуры закупок.
-              </p>
-            </div>
-            <div class="rounded-3xl border border-border/70 bg-background/80 p-4">
-              <p class="text-sm font-semibold">Проверяй добросовестность</p>
-              <p class="mt-2 text-sm leading-6 text-muted-foreground">
-                Watchlist по контрагентам помогает быстро увидеть поставщиков, которых уже стоит поднимать на ручную проверку.
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
       <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <StatCard
           v-for="card in supplierCards"
@@ -699,9 +620,6 @@ onMounted(() => {
         <Card class="min-w-0 overflow-hidden">
           <CardHeader>
             <CardTitle>Концентрация по поставщикам</CardTitle>
-            <CardDescription>
-              Основной бар-чарт по доле потока: сколько закупок и какой денежный объём держит каждый заметный поставщик.
-            </CardDescription>
           </CardHeader>
           <CardContent>
             <MetricBarList
@@ -714,9 +632,6 @@ onMounted(() => {
         <Card class="min-w-0 overflow-hidden">
           <CardHeader>
             <CardTitle>Ключевые заказчики</CardTitle>
-            <CardDescription>
-              Видно, какие заказчики формируют основную долю потока и на чьих закупках строится текущая картина.
-            </CardDescription>
           </CardHeader>
           <CardContent>
             <MetricBarList
@@ -731,9 +646,6 @@ onMounted(() => {
         <Card class="min-w-0 overflow-hidden">
           <CardHeader>
             <CardTitle>Бюджетная концентрация поставщиков</CardTitle>
-            <CardDescription>
-              Отдельный срез по суммам показывает лидеров не только по количеству карточек, но и по бюджету.
-            </CardDescription>
           </CardHeader>
           <CardContent>
             <MetricBarList
@@ -746,9 +658,6 @@ onMounted(() => {
         <Card class="min-w-0 overflow-hidden">
           <CardHeader>
             <CardTitle>Заказчики по бюджету</CardTitle>
-            <CardDescription>
-              Денежный разрез помогает увидеть, кто выступает крупнейшим заказчиком не по частоте, а по объёму.
-            </CardDescription>
           </CardHeader>
           <CardContent>
             <MetricBarList
@@ -762,9 +671,6 @@ onMounted(() => {
       <Card class="min-w-0 overflow-hidden">
         <CardHeader>
           <CardTitle>Недобросовестные и проблемные поставщики</CardTitle>
-          <CardDescription>
-            Список поставщиков, по которым уже накопились риск-сигналы и которые стоит проверять при работе с текущим потоком закупок.
-          </CardDescription>
         </CardHeader>
         <CardContent>
           <MetricBarList
@@ -776,41 +682,6 @@ onMounted(() => {
     </template>
 
     <template v-else>
-      <Card class="overflow-hidden border-border/70 bg-gradient-to-br from-background via-background to-muted/25">
-        <CardContent class="grid gap-6 p-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
-          <div class="min-w-0 space-y-4">
-            <p class="text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">Атомный контур</p>
-            <div class="space-y-2">
-              <h2 class="text-2xl font-semibold tracking-tight">Отдельная витрина по АЭС с фиксированным атомным периодом</h2>
-              <p class="max-w-3xl text-sm leading-6 text-muted-foreground">
-                Здесь атомные закупки и договоры не смешиваются с общим потоком. Видно, где уже собран плотный контур АЭС, какие источники его питают и какие карточки пришли последними.
-              </p>
-            </div>
-          </div>
-
-          <div class="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
-            <div class="rounded-3xl border border-border/70 bg-background/80 p-4">
-              <p class="text-sm font-semibold">Период фиксирован</p>
-              <p class="mt-2 text-sm leading-6 text-muted-foreground">
-                Все атомные расчёты считаются от {{ nppPeriodLabel || "01.01.2025" }}, чтобы динамика не прыгала вместе с окном просмотра.
-              </p>
-            </div>
-            <div class="rounded-3xl border border-border/70 bg-background/80 p-4">
-              <p class="text-sm font-semibold">Сначала смотри покрытие</p>
-              <p class="mt-2 text-sm leading-6 text-muted-foreground">
-                По станциям и источникам сразу видно, где атомный слой уже плотный, а где ещё есть пробелы.
-              </p>
-            </div>
-            <div class="rounded-3xl border border-border/70 bg-background/80 p-4">
-              <p class="text-sm font-semibold">Потом переходи к карточкам</p>
-              <p class="mt-2 text-sm leading-6 text-muted-foreground">
-                Свежие закупки внизу нужны как быстрая проверка качества отбора и целевой станции в raw payload.
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
       <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <StatCard
           v-for="card in nppSummaryCards"

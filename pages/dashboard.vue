@@ -129,106 +129,6 @@ const analyticsCards = computed(() => {
   ];
 });
 
-const roleSummary = computed(() => {
-  if (role.value === "ANALYST") {
-    return "Экран собран для аналитика: сначала общая картина потока, затем расшифровка по источникам и оперативный список закупок.";
-  }
-
-  if (role.value === "DEVELOPER") {
-    return "Экран разделён на бизнес-слой и инженерный слой, чтобы метрики и технические инциденты не смешивались между собой.";
-  }
-
-  if (role.value === "ADMIN") {
-    return "Сначала видна понятная картина закупочного потока, ниже вынесен технический контур для контроля парсеров и runtime.";
-  }
-
-  return "Главный рабочий экран с понятной структурой потока, свежестью данных и быстрыми переходами.";
-});
-
-const roleBadges = computed(() => {
-  const items = ["Закупочный поток"];
-
-  if (canViewAnalytics.value) {
-    items.push("Аналитика");
-  }
-
-  if (canViewReports.value) {
-    items.push("Отчёты");
-  }
-
-  if (canViewScraperOverview.value) {
-    items.push("Инженерный контур");
-  }
-
-  return items;
-});
-
-const analyticsSectionDescription = computed(() => {
-  if (isAdmin.value) {
-    return "Бизнес-аналитика вынесена в отдельный слой: здесь видны сроки, объёмы, структура потока и атомный контур без инженерного шума.";
-  }
-
-  if (isAnalyst.value) {
-    return "Это основной рабочий слой аналитика: дедлайны, распределение потока, атомный контур и свежие закупки, которые стоит разбирать в первую очередь.";
-  }
-
-  return "Аналитический слой недоступен для вашей текущей роли.";
-});
-
-const parsersSectionDescription = computed(() => {
-  if (isAdmin.value) {
-    return "Технический контур собран отдельно: runtime, проблемные источники, инциденты и детальные сигналы по сборщикам в одном инженерном блоке.";
-  }
-
-  if (isDeveloper.value) {
-    return "Это рабочая инженерная секция: сначала runtime и проблемные источники, затем инциденты и детальное состояние контуров сбора.";
-  }
-
-  return "Инженерный слой парсеров скрыт для вашей текущей роли.";
-});
-
-const reportsSectionDescription = computed(() => {
-  if (isAdmin.value) {
-    return "Отчётный слой показывает готовность сценариев для бизнеса и техники: что уже собрано, что пересчитывается и куда переходить за деталями.";
-  }
-
-  if (isAnalyst.value) {
-    return "Здесь собраны готовые аналитические сценарии по поставщикам, нишам и атомным закупкам, чтобы быстро переходить от сводки к детальному отчёту.";
-  }
-
-  if (isDeveloper.value) {
-    return "Для разработчика отчётный слой полезен как отдельная витрина технических и сервисных сценариев, не смешанная с runtime-панелью.";
-  }
-
-  return "Отчётный слой недоступен для вашей текущей роли.";
-});
-
-const dashboardGuide = computed(() => {
-  const recentRuns = summary.value?.recentSourceRuns ?? [];
-  const degradedRuns = recentRuns.filter((item) => item.status === "FAILED" || item.status === "PARTIAL").length;
-  const runningRuns = recentRuns.filter((item) => item.status === "RUNNING").length;
-
-  return [
-    {
-      title: "Сначала смотри на верхние карточки",
-      text: "Они показывают общий объём базы, активность контуров и свежесть данных, без ухода в технические детали."
-    },
-    {
-      title: "Диаграммы ниже отвечают на два вопроса",
-      text: "Где сосредоточен поток по источникам и как он распределён по статусам и времени."
-    },
-    {
-      title: "Состояние контура сейчас",
-      text:
-        runningRuns > 0
-          ? `Сейчас выполняются ${formatNumber(runningRuns)} запуска, поток продолжает обновляться.`
-          : degradedRuns > 0
-            ? `Есть ${formatNumber(degradedRuns)} проблемных запуска в недавнем окне, это уже вынесено в инженерный слой ниже.`
-            : "Критичных отклонений в последних прогонах не видно."
-    }
-  ];
-});
-
 const sourceDistributionItems = computed(() =>
   [...(summary.value?.bySource ?? [])]
     .sort((left, right) => right.count - left.count)
@@ -663,10 +563,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <PageHeader
-    title="Дашборд"
-    :description="roleSummary"
-  />
+  <PageHeader title="Дашборд" />
 
   <Card v-if="isPlainUser">
     <CardHeader>
@@ -701,55 +598,7 @@ onMounted(async () => {
 
   <template v-else-if="summary">
     <div class="space-y-6">
-      <Card class="overflow-hidden border-border/70 bg-gradient-to-br from-background via-background to-muted/30">
-        <CardContent class="grid gap-6 p-6 lg:grid-cols-[1.15fr_0.85fr]">
-          <div class="space-y-4">
-            <div class="flex flex-wrap gap-2">
-              <Badge v-for="item in roleBadges" :key="item" variant="secondary">{{ item }}</Badge>
-            </div>
-            <div class="space-y-2">
-              <p class="text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">Ролевая витрина</p>
-              <h2 class="text-2xl font-semibold tracking-tight">Дашборд разложен по категориям, а не в одну длинную ленту</h2>
-              <p class="max-w-3xl text-sm leading-6 text-muted-foreground">
-                Сначала идёт понятное описание каждой категории, затем только её данные. Видимые блоки и глубина деталей зависят от вашей роли в системе.
-              </p>
-            </div>
-          </div>
-
-          <div class="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
-            <div
-              v-for="item in dashboardGuide"
-              :key="item.title"
-              class="rounded-3xl border border-border/70 bg-background/70 p-4 backdrop-blur"
-            >
-              <p class="text-sm font-semibold">{{ item.title }}</p>
-              <p class="mt-2 text-sm leading-6 text-muted-foreground">{{ item.text }}</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
       <section class="space-y-4">
-        <Card class="overflow-hidden border-border/70 bg-gradient-to-br from-sky-500/10 via-background to-background">
-          <CardContent class="grid gap-6 p-6 lg:grid-cols-[1.15fr_0.85fr]">
-            <div class="space-y-3">
-              <div class="flex flex-wrap gap-2">
-                <Badge variant="secondary">Аналитика</Badge>
-                <Badge :variant="canViewAnalytics ? 'success' : 'outline'">
-                  {{ canViewAnalytics ? "Доступно" : "Недоступно для роли" }}
-                </Badge>
-              </div>
-              <div class="space-y-2">
-                <h3 class="text-2xl font-semibold tracking-tight">Аналитика</h3>
-                <p class="max-w-3xl text-sm leading-6 text-muted-foreground">
-                  {{ analyticsSectionDescription }}
-                </p>
-              </div>
-            </div>
-
-          </CardContent>
-        </Card>
-
         <template v-if="canViewAnalytics">
           <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <StatCard
@@ -775,9 +624,6 @@ onMounted(async () => {
             <Card>
               <CardHeader>
                 <CardTitle>Статусы потока</CardTitle>
-                <CardDescription>
-                  В одном месте видно жизненный цикл закупок и состояние последних прогонов, чтобы аналитика сразу читалась как поток.
-                </CardDescription>
               </CardHeader>
               <CardContent class="space-y-6">
                 <div class="space-y-3">
@@ -801,19 +647,9 @@ onMounted(async () => {
             <Card>
               <CardHeader>
                 <CardTitle>Где сосредоточен поток</CardTitle>
-                <CardDescription>
-                  Быстрая диаграмма показывает, какие источники формируют основной объём и где перекос уже становится заметным.
-                </CardDescription>
               </CardHeader>
-              <CardContent class="space-y-5">
+              <CardContent>
                 <MetricBarList :items="sourceDistributionItems" />
-
-                <div class="rounded-3xl border bg-muted/15 p-4">
-                  <p class="text-sm font-medium">Как читать эту диаграмму</p>
-                  <p class="mt-2 text-sm leading-6 text-muted-foreground">
-                    Если один источник резко доминирует или пропадает из верхней части списка, это обычно первый сигнал на проверку свежести данных и контура публикации.
-                  </p>
-                </div>
               </CardContent>
             </Card>
           </div>
@@ -821,24 +657,15 @@ onMounted(async () => {
           <Card>
             <CardHeader>
               <CardTitle>Динамика обновления</CardTitle>
-              <CardDescription>
-                Интерактивный line chart показывает, как менялся объём обновлённых закупок во времени.
-              </CardDescription>
             </CardHeader>
-            <CardContent class="space-y-4">
+            <CardContent>
               <MetricLineChartInteractive :items="timelineItems" />
-              <p class="text-sm leading-6 text-muted-foreground">
-                График помогает быстро отличить ровный поток от провалов. Если линия подряд уходит вниз, это повод проверить конкретные источники и свежие прогоны.
-              </p>
             </CardContent>
           </Card>
 
           <Card v-if="nppRecentProcurements.length > 0">
             <CardHeader>
               <CardTitle>Атомный контур</CardTitle>
-              <CardDescription>
-                Отдельный блок по АЭС не теряется на фоне общего потока: видны станции, сумма и самые свежие карточки атомных закупок.
-              </CardDescription>
             </CardHeader>
             <CardContent class="space-y-6">
               <div class="grid gap-4 md:grid-cols-3">
@@ -861,9 +688,6 @@ onMounted(async () => {
                     <div class="flex items-start justify-between gap-3">
                       <div class="space-y-1">
                         <CardTitle class="text-base">{{ station.station }}</CardTitle>
-                        <CardDescription>
-                          Поток закупок по станции в выделенном атомном окне дашборда.
-                        </CardDescription>
                       </div>
                       <Badge variant="secondary">
                         {{ formatNumber(station.count) }}
@@ -913,9 +737,6 @@ onMounted(async () => {
             <Card>
               <CardHeader>
                 <CardTitle>Оперативный список закупок</CardTitle>
-                <CardDescription>
-                  Здесь только свежие записи, чтобы не смешивать общую аналитику и список того, что логично открыть прямо сейчас.
-                </CardDescription>
               </CardHeader>
               <CardContent class="space-y-4">
                 <div class="flex flex-wrap items-center gap-2">
@@ -1058,9 +879,6 @@ onMounted(async () => {
             <Card>
               <CardHeader>
                 <CardTitle>Фокус по источникам</CardTitle>
-                <CardDescription>
-                  Небольшой оперативный блок, чтобы читать активность и свежесть источников без перехода в отдельную страницу.
-                </CardDescription>
               </CardHeader>
               <CardContent class="space-y-3">
                 <div
@@ -1095,26 +913,6 @@ onMounted(async () => {
       </section>
 
       <section class="space-y-4">
-        <Card class="overflow-hidden border-border/70 bg-gradient-to-br from-rose-500/10 via-background to-background">
-          <CardContent class="grid gap-6 p-6 lg:grid-cols-[1.15fr_0.85fr]">
-            <div class="space-y-3">
-              <div class="flex flex-wrap gap-2">
-                <Badge variant="secondary">Парсеры</Badge>
-                <Badge :variant="canViewScraperOverview ? 'success' : 'outline'">
-                  {{ canViewScraperOverview ? "Доступно" : "Недоступно для роли" }}
-                </Badge>
-              </div>
-              <div class="space-y-2">
-                <h3 class="text-2xl font-semibold tracking-tight">Парсеры</h3>
-                <p class="max-w-3xl text-sm leading-6 text-muted-foreground">
-                  {{ parsersSectionDescription }}
-                </p>
-              </div>
-            </div>
-
-          </CardContent>
-        </Card>
-
         <template v-if="canViewScraperOverview && scraperOverview">
           <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <StatCard
@@ -1130,9 +928,6 @@ onMounted(async () => {
             <Card>
               <CardHeader>
                 <CardTitle>Runtime и ограничения</CardTitle>
-                <CardDescription>
-                  Здесь видно состояние control API, расписание, активные источники и контуры защиты от повторных сбоев.
-                </CardDescription>
               </CardHeader>
               <CardContent class="space-y-4">
                 <div class="flex flex-wrap items-center gap-2">
@@ -1190,22 +985,12 @@ onMounted(async () => {
             <Card>
               <CardHeader>
                 <CardTitle>Где требуется реакция</CardTitle>
-                <CardDescription>
-                  Визуальный список проблемных источников, чтобы быстро увидеть инженерный приоритет без длинной таблицы.
-                </CardDescription>
               </CardHeader>
-              <CardContent class="space-y-5">
+              <CardContent>
                 <MetricBarList
                   :items="technicalWatchItems"
                   empty-text="Сейчас нет источников, которые требуют отдельного инженерного внимания."
                 />
-
-                <div class="rounded-3xl border bg-muted/15 p-4">
-                  <p class="text-sm font-medium">Как использовать этот блок</p>
-                  <p class="mt-2 text-sm leading-6 text-muted-foreground">
-                    Чем выше карточка в списке, тем сильнее сочетание неуспехов, публикационных потерь и внимания со стороны runtime.
-                  </p>
-                </div>
               </CardContent>
             </Card>
           </div>
@@ -1213,9 +998,6 @@ onMounted(async () => {
           <Card>
             <CardHeader>
               <CardTitle>Последние технические инциденты</CardTitle>
-              <CardDescription>
-                Ошибки и нестабильные прогоны вынесены отдельно, чтобы они не смешивались с бизнес-аналитикой.
-              </CardDescription>
             </CardHeader>
             <CardContent>
               <EmptyState
@@ -1239,9 +1021,6 @@ onMounted(async () => {
           <Card>
             <CardHeader>
               <CardTitle>Источники под инженерным наблюдением</CardTitle>
-              <CardDescription>
-                Детальная таблица остаётся в конце технической секции, уже после визуального приоритезационного слоя.
-              </CardDescription>
             </CardHeader>
             <CardContent class="px-0">
               <Table>
@@ -1286,26 +1065,6 @@ onMounted(async () => {
       </section>
 
       <section class="space-y-4">
-        <Card class="overflow-hidden border-border/70 bg-gradient-to-br from-amber-500/10 via-background to-background">
-          <CardContent class="grid gap-6 p-6 lg:grid-cols-[1.15fr_0.85fr]">
-            <div class="space-y-3">
-              <div class="flex flex-wrap gap-2">
-                <Badge variant="secondary">Отчёты</Badge>
-                <Badge :variant="canViewReports ? 'success' : 'outline'">
-                  {{ canViewReports ? "Доступно" : "Недоступно для роли" }}
-                </Badge>
-              </div>
-              <div class="space-y-2">
-                <h3 class="text-2xl font-semibold tracking-tight">Отчёты</h3>
-                <p class="max-w-3xl text-sm leading-6 text-muted-foreground">
-                  {{ reportsSectionDescription }}
-                </p>
-              </div>
-            </div>
-
-          </CardContent>
-        </Card>
-
         <template v-if="canViewReports">
           <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <StatCard
@@ -1321,9 +1080,6 @@ onMounted(async () => {
             <Card>
               <CardHeader>
                 <CardTitle>Статусы отчётного контура</CardTitle>
-                <CardDescription>
-                  Показывает, сколько сценариев уже готовы, сколько пересчитываются и где есть проблемы формирования.
-                </CardDescription>
               </CardHeader>
               <CardContent class="space-y-4">
                 <div class="flex items-center justify-between">
@@ -1337,9 +1093,6 @@ onMounted(async () => {
             <Card>
               <CardHeader>
                 <CardTitle>Типы доступных отчётов</CardTitle>
-                <CardDescription>
-                  Отдельный список по сценариям, чтобы понимать, какие срезы уже есть для вашей роли и как часто они обновляются.
-                </CardDescription>
               </CardHeader>
               <CardContent class="grid gap-3">
                 <NuxtLink
@@ -1364,9 +1117,6 @@ onMounted(async () => {
           <Card>
             <CardHeader>
               <CardTitle>Последние отчётные сигналы</CardTitle>
-              <CardDescription>
-                Здесь остаются самые свежие сценарии и быстрые переходы к деталям, уже без смешения с аналитикой и runtime.
-              </CardDescription>
             </CardHeader>
             <CardContent>
               <div class="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
