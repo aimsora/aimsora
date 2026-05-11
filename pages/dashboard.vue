@@ -167,13 +167,16 @@ const runStatusSegments = computed(() => {
 });
 
 const timelineItems = computed(() =>
-  (summary.value?.procurementsOverTime ?? []).slice(-8).map((item) => ({
-    label: formatDate(item.date),
-    shortLabel: shortDateFormatter.format(new Date(item.date)),
-    value: item.count,
-    valueLabel: formatNumber(item.count),
-    note: "Обновлённые закупки в этой точке временного ряда."
-  }))
+  (summary.value?.procurementsOverTime ?? [])
+    .filter((item) => item.count > 0)
+    .slice(-8)
+    .map((item) => ({
+      label: formatDate(item.date),
+      shortLabel: shortDateFormatter.format(new Date(item.date)),
+      value: item.count,
+      valueLabel: formatNumber(item.count),
+      note: "Обновлённые закупки в этой точке временного ряда."
+    }))
 );
 
 const recentProcurements = computed(() => summary.value?.recentProcurements ?? []);
